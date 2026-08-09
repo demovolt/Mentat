@@ -1,0 +1,31 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  overflow: hidden;
+  background: #0f0f0f;
+  color: #f0f0f0;
+  font-family: 'JetBrains Mono', 'Ubuntu Mono', monospace;
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+#root { height: 100vh; display: flex; flex-direction: column; }
+
+/* Allow text selection inside terminal */
+.xterm * { user-select: text; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
+
+/* xterm fills its container */
+.xterm,
+.xterm-viewport,
+.xterm-screen { height: 100% !important; }
+.xterm-viewport { overflow-y: auto !important; }
