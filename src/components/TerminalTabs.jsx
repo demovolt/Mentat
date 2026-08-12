@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 
-export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew, shellProfiles = [] }) {
+export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew, onNewAi, shellProfiles = [] }) {
   const [menuPos, setMenuPos] = useState(null);
   const chevronRef = useRef(null);
 
@@ -32,6 +32,9 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
               : 'text-[#555] hover:text-[#999] hover:bg-[#0d0d0d]'
           }`}
         >
+          {tab.type === 'ai' && (
+            <span className="w-1.5 h-1.5 rounded-full bg-[#7c3aed] shrink-0" />
+          )}
           <span>{tab.label}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
@@ -54,6 +57,16 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
         >
           +
         </button>
+
+        {onNewAi && (
+          <button
+            onClick={onNewAi}
+            title="New AI tab"
+            className="px-2 h-8 text-[11px] text-[#555] hover:text-[#a78bfa] transition-colors font-medium"
+          >
+            + AI
+          </button>
+        )}
 
         {shellProfiles.length > 1 && (
           <button
