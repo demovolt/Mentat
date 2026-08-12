@@ -62,8 +62,9 @@ function loadConfig() {
       raw.workspace = [{ path: raw.repoPath }];
     }
     if (!raw.workspace) raw.workspace = [];
+    if (!raw.aiCommand) raw.aiCommand = 'claude';
     return raw;
-  } catch { return { workspace: [] }; }
+  } catch { return { workspace: [], aiCommand: 'claude' }; }
 }
 
 function saveConfig(cfg) {

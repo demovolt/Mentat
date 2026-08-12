@@ -3,11 +3,12 @@ import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import '@xterm/xterm/css/xterm.css';
 
-export default function Terminal({ termId, worktreePath, shellId, active }) {
+export default function Terminal({ termId, worktreePath, shellId, active, type, aiCommand }) {
   const containerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const activeRef = useRef(active);
+  const aiSentRef = useRef(false);
   activeRef.current = active;
 
   // Mount xterm once
@@ -129,9 +130,16 @@ export default function Terminal({ termId, worktreePath, shellId, active }) {
   // Receive PTY data
   useEffect(() => {
     return window.api.onTerminalData(({ termId: id, data }) => {
-      if (id === termId) xtermRef.current?.write(data);
+      if (id !== termId) return;
+      xtermRef.current?.write(data);
+      if (type === 'ai' && !aiSentRef.current) {
+        aiSentRef.current = true;
+        setTimeout(() => {
+          window.api.writeTerminal(termId, `${aiCommand || 'claude'}\r`);
+        }, 150);
+      }
     });
-  }, [termId]);
+  }, [termId, type, aiCommand]);
 
   // Focus + fit when this terminal becomes visible
   useEffect(() => {
