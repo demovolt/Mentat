@@ -6,11 +6,12 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 
-export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight }) {
+export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight, type, aiCommand }) {
   const containerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const activeRef = useRef(active);
+  const aiSentRef = useRef(false);
   activeRef.current = active;
 
   // Mount xterm once
@@ -184,9 +185,16 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
   // Receive PTY data
   useEffect(() => {
     return window.api.onTerminalData(({ termId: id, data }) => {
-      if (id === termId) xtermRef.current?.write(data);
+      if (id !== termId) return;
+      xtermRef.current?.write(data);
+      if (type === 'ai' && !aiSentRef.current) {
+        aiSentRef.current = true;
+        setTimeout(() => {
+          window.api.writeTerminal(termId, `${aiCommand || 'claude'}\r`);
+        }, 150);
+      }
     });
-  }, [termId]);
+  }, [termId, type, aiCommand]);
 
   // Focus + fit when this terminal becomes visible
   useEffect(() => {

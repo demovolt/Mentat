@@ -19,6 +19,10 @@ const DEFAULT_SETTINGS = {
     lineHeight: 1.2,
   },
 };
+function deriveAiLabel(cmd) {
+  const name = (cmd || 'claude').split(/[\s/\\]/).pop();
+  return name.charAt(0).toUpperCase() + name.slice(1);
+}
 
 export default function App() {
   const [workspace, setWorkspace] = useState([]);            // [{ path }]
@@ -41,6 +45,7 @@ export default function App() {
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
+  const [aiCommand, setAiCommand] = useState('claude');
 
   const stateLoaded = useRef(false);
 
@@ -52,6 +57,7 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const cfg = await window.api.getConfig();
+      if (cfg.aiCommand) setAiCommand(cfg.aiCommand);
       const ws = cfg.workspace || [];
       if (cfg.settings) {
         setSettings((prev) => ({
@@ -84,7 +90,7 @@ export default function App() {
         const allValidPaths = new Set(Object.values(newWorktreesMap).flat().map(wt => wt.path));
         const restored = saved.terminals
           .filter(t => allValidPaths.has(t.worktreePath))
-          .map(t => ({ id: newTermId(), worktreePath: t.worktreePath, label: t.label, shellId: t.shellId || null }));
+          .map(t => ({ id: newTermId(), worktreePath: t.worktreePath, label: t.label, shellId: t.shellId || null, type: t.type || null }));
 
         setTerminals(restored);
 
@@ -111,7 +117,7 @@ export default function App() {
     if (!stateLoaded.current) return;
     window.api.saveState({
       activeWorktreePath,
-      terminals: terminals.map(({ worktreePath, label, shellId }) => ({ worktreePath, label, shellId })),
+      terminals: terminals.map(({ worktreePath, label, shellId, type }) => ({ worktreePath, label, shellId, type: type || null })),
       worktreeNames,
     });
   }, [terminals, activeWorktreePath, worktreeNames]);
@@ -139,6 +145,18 @@ export default function App() {
     return id;
   }, [shellProfiles]);
 
+  const addAiTerminal = useCallback((worktreePath) => {
+    const id = newTermId();
+    setTerminals((prev) => {
+      const existingAi = prev.filter(t => t.worktreePath === worktreePath && t.type === 'ai');
+      const num = existingAi.length + 1;
+      const label = `${deriveAiLabel(aiCommand)} ${num}`;
+      return [...prev, { id, worktreePath, shellId: null, label, type: 'ai' }];
+    });
+    setActiveTerminalId(id);
+    return id;
+  }, [aiCommand]);
+
   const handleSelectWorktree = useCallback((wt) => {
     setActiveWorktreePath(wt.path);
     setTerminals((prev) => {
@@ -146,7 +164,7 @@ export default function App() {
       if (existing.length === 0) {
         const id = newTermId();
         setActiveTerminalId(id);
-        return [...prev, { id, worktreePath: wt.path, shellId: null, label: 'Terminal 1' }];
+        return [...prev, { id, worktreePath: wt.path, shellId: null, label: `${deriveAiLabel(aiCommand)} 1`, type: 'ai' }];
       }
       setActiveTerminalId((cur) => {
         const stillThere = existing.find((t) => t.id === cur);
@@ -154,7 +172,7 @@ export default function App() {
       });
       return prev;
     });
-  }, []);
+  }, [aiCommand]);
 
   const handleCloseTerminal = useCallback((termId) => {
     setTerminals((prev) => {
@@ -354,6 +372,7 @@ export default function App() {
               onSelect={setActiveTerminalId}
               onClose={handleCloseTerminal}
               onNew={(shellId) => addTerminal(activeWorktreePath, shellId)}
+              onNewAi={() => addAiTerminal(activeWorktreePath)}
               shellProfiles={shellProfiles}
             />
           )}
@@ -369,6 +388,8 @@ export default function App() {
                 fontFamily={settings.console.fontFamily}
                 fontSize={settings.console.fontSize}
                 lineHeight={settings.console.lineHeight}
+                type={t.type}
+                aiCommand={aiCommand}
               />
             ))}
             {!activeTerminalId && (
