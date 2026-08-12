@@ -1,9 +1,12 @@
 import { useEffect, useRef } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
+import { WebglAddon } from '@xterm/addon-webgl';
+import { WebLinksAddon } from '@xterm/addon-web-links';
+import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 
-export default function Terminal({ termId, worktreePath, shellId, active }) {
+export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight }) {
   const containerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
@@ -39,17 +42,46 @@ export default function Terminal({ termId, worktreePath, shellId, active }) {
         brightCyan:    '#89dceb',
         brightWhite:   '#cdd6f4',
       },
-      fontSize: 15,
-      fontFamily: "'JetBrains Mono', 'Ubuntu Mono', 'Consolas', monospace",
+      fontSize: fontSize || 13,
+      fontFamily: fontFamily || "'Ubuntu Mono', 'Consolas', monospace",
+      lineHeight: lineHeight || 1.2,
       cursorBlink: true,
       cursorStyle: 'block',
       scrollback: 5000,
       allowTransparency: false,
+      customGlyphs: true,
     });
 
     const fit = new FitAddon();
     xterm.loadAddon(fit);
     xterm.open(el);
+
+    xterm.loadAddon(new WebLinksAddon((_, url) => window.open(url, '_blank')));
+    xterm.loadAddon(new ClipboardAddon());
+
+    let webglAddon = null;
+    let webglDisposed = false;
+    try {
+      const canvas = document.createElement('canvas');
+      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
+      if (gl) {
+        const ext = gl.getExtension('WEBGL_debug_renderer_info');
+        const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '';
+        const isSoftware = /swiftshader|software|llvmpipe|mesa/i.test(renderer);
+        if (!isSoftware) {
+          webglAddon = new WebglAddon();
+          webglAddon.onContextLoss(() => {
+            if (!webglDisposed) {
+              webglDisposed = true;
+              webglAddon.dispose();
+            }
+          });
+          xterm.loadAddon(webglAddon);
+        }
+      }
+    } catch {
+      // fallback to canvas renderer
+    }
 
     xtermRef.current = xterm;
     fitAddonRef.current = fit;
@@ -122,9 +154,32 @@ export default function Terminal({ termId, worktreePath, shellId, active }) {
       cancelAnimationFrame(raf2);
       obs.disconnect();
       window.api.closeTerminal(termId);
+      webglDisposed = true;
       xterm.dispose();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Apply font/size/lineHeight changes to already-open terminals
+  useEffect(() => {
+    if (xtermRef.current && fontFamily) {
+      xtermRef.current.options.fontFamily = fontFamily;
+      try { fitAddonRef.current?.fit(); } catch {}
+    }
+  }, [fontFamily]);
+
+  useEffect(() => {
+    if (xtermRef.current && fontSize) {
+      xtermRef.current.options.fontSize = fontSize;
+      try { fitAddonRef.current?.fit(); } catch {}
+    }
+  }, [fontSize]);
+
+  useEffect(() => {
+    if (xtermRef.current && lineHeight) {
+      xtermRef.current.options.lineHeight = lineHeight;
+      try { fitAddonRef.current?.fit(); } catch {}
+    }
+  }, [lineHeight]);
 
   // Receive PTY data
   useEffect(() => {

@@ -6,9 +6,19 @@ import Terminal from './components/Terminal.jsx';
 import NewWorktreeModal from './components/NewWorktreeModal.jsx';
 import GitPipelineModal from './components/GitPipelineModal.jsx';
 import PruneConfirmModal from './components/PruneConfirmModal.jsx';
+import SettingsModal from './components/SettingsModal.jsx';
 
 let _counter = 0;
 function newTermId() { return `term-${++_counter}-${Date.now()}`; }
+
+const DEFAULT_SETTINGS = {
+  ai: 'claude',
+  console: {
+    fontFamily: "'Ubuntu Mono', 'Consolas', monospace",
+    fontSize: 13,
+    lineHeight: 1.2,
+  },
+};
 
 export default function App() {
   const [workspace, setWorkspace] = useState([]);            // [{ path }]
@@ -27,7 +37,10 @@ export default function App() {
   const [isPruning, setIsPruning] = useState(false);
   const [error, setError] = useState(null);
   const [terminalStatuses, setTerminalStatuses] = useState({});
+  const [terminalSessionActive, setTerminalSessionActive] = useState({});
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
+  const [showSettings, setShowSettings] = useState(false);
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const stateLoaded = useRef(false);
 
@@ -40,6 +53,13 @@ export default function App() {
     (async () => {
       const cfg = await window.api.getConfig();
       const ws = cfg.workspace || [];
+      if (cfg.settings) {
+        setSettings((prev) => ({
+          ...prev,
+          ...cfg.settings,
+          console: { ...prev.console, ...(cfg.settings.console || {}) },
+        }));
+      }
 
       const profiles = await window.api.getShellProfiles();
       setShellProfiles(profiles);
@@ -84,8 +104,8 @@ export default function App() {
 
   useEffect(() => {
     if (!stateLoaded.current) return;
-    window.api.saveConfig({ workspace });
-  }, [workspace]);
+    window.api.saveConfig({ workspace, settings });
+  }, [workspace, settings]);
 
   useEffect(() => {
     if (!stateLoaded.current) return;
@@ -97,8 +117,9 @@ export default function App() {
   }, [terminals, activeWorktreePath, worktreeNames]);
 
   useEffect(() => {
-    const unsub = window.api.onWorktreeStatus(({ termId, status }) => {
+    const unsub = window.api.onWorktreeStatus(({ termId, status, sessionActive }) => {
       setTerminalStatuses(prev => ({ ...prev, [termId]: status }));
+      setTerminalSessionActive(prev => ({ ...prev, [termId]: sessionActive }));
     });
     return unsub;
   }, []);
@@ -302,6 +323,8 @@ export default function App() {
         repoPath={activeRepoPath}
         onPrune={handleCheckPrune}
         isPruning={isPruning}
+        onAddRepo={addRepo}
+        onSettings={() => setShowSettings(true)}
       />
 
       <div className="flex flex-1 overflow-hidden">
@@ -320,6 +343,7 @@ export default function App() {
           worktreeNames={worktreeNames}
           terminals={terminals}
           terminalStatuses={terminalStatuses}
+          terminalSessionActive={terminalSessionActive}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">
@@ -342,6 +366,9 @@ export default function App() {
                 worktreePath={t.worktreePath}
                 shellId={t.shellId}
                 active={t.id === activeTerminalId}
+                fontFamily={settings.console.fontFamily}
+                fontSize={settings.console.fontSize}
+                lineHeight={settings.console.lineHeight}
               />
             ))}
             {!activeTerminalId && (
@@ -376,6 +403,14 @@ export default function App() {
         <NewWorktreeModal
           onCreate={handleCreateWorktree}
           onClose={() => setShowModal(false)}
+        />
+      )}
+
+      {showSettings && (
+        <SettingsModal
+          settings={settings}
+          onSettingsChange={setSettings}
+          onClose={() => setShowSettings(false)}
         />
       )}
 

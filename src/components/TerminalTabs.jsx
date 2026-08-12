@@ -26,7 +26,7 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
         <div
           key={tab.id}
           onClick={() => onSelect(tab.id)}
-          className={`flex items-center gap-1.5 px-3 h-8 cursor-pointer border-r border-[#1c1c1c] text-[12px] group shrink-0 select-none transition-colors ${
+          className={`flex items-center gap-1.5 px-3 h-8 cursor-pointer border-r border-[#1c1c1c] text-[14px] group shrink-0 select-none transition-colors ${
             tab.id === activeId
               ? 'bg-[#0f0f0f] text-[#ddd]'
               : 'text-[#555] hover:text-[#999] hover:bg-[#0d0d0d]'
@@ -35,7 +35,7 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
           <span>{tab.label}</span>
           <button
             onClick={(e) => { e.stopPropagation(); onClose(tab.id); }}
-            className={`w-4 h-4 flex items-center justify-center rounded text-[12px] leading-none transition-colors ${
+            className={`w-4 h-4 flex items-center justify-center rounded text-[14px] leading-none transition-colors ${
               tab.id === activeId
                 ? 'text-[#555] hover:text-[#f87171] hover:bg-[#2a1414]'
                 : 'text-transparent group-hover:text-[#444] hover:!text-[#f87171]'
@@ -78,7 +78,7 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
             <button
               key={profile.id}
               onMouseDown={(e) => { e.stopPropagation(); setMenuPos(null); onNew(profile.id); }}
-              className="w-full text-left px-3 py-1.5 text-[12px] text-[#888] hover:text-white hover:bg-[#1c1c1c] transition-colors"
+              className="w-full text-left px-3 py-1.5 text-[14px] text-[#888] hover:text-white hover:bg-[#1c1c1c] transition-colors"
             >
               {profile.name}
             </button>

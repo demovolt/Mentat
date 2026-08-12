@@ -1,19 +1,33 @@
-export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune, isPruning }) {
+export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune, isPruning, onAddRepo, onSettings }) {
   return (
     <div
       className="flex items-center justify-between h-9 px-3 shrink-0 bg-[#0a0a0a] border-b border-[#1c1c1c]"
       style={{ WebkitAppRegion: 'drag' }}
     >
       <div className="flex items-center gap-3">
-        <span className="text-[11px] font-bold tracking-[0.2em] text-[#7c3aed] uppercase">
+        <span className="text-[12px] font-bold tracking-[0.2em] text-[#7c3aed] uppercase">
           Mentat
         </span>
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          <button
+            onClick={onAddRepo}
+            title="Add repository"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
+              text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] cursor-pointer"
+          >
+            <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+              <line x1="7" y1="1" x2="7" y2="13" />
+              <line x1="1" y1="7" x2="13" y2="7" />
+            </svg>
+            Add Repository
+          </button>
+        </div>
         <div style={{ WebkitAppRegion: 'no-drag' }}>
           <button
             onClick={onGit}
             disabled={!activeWorktreePath}
             title="Git pipeline"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] transition-colors
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
               disabled:opacity-25 disabled:cursor-not-allowed
               text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] enabled:cursor-pointer"
           >
@@ -32,7 +46,7 @@ export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune,
             onClick={onPrune}
             disabled={!repoPath || isPruning}
             title="Удалить воркфри смёрженных веток"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[11px] transition-colors
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
               disabled:opacity-25 disabled:cursor-not-allowed
               text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] enabled:cursor-pointer"
           >
@@ -41,6 +55,19 @@ export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune,
               <path d="M2 14 Q4 11 6 13 Q8 15 5 15 Z" fill="currentColor" stroke="none" />
             </svg>
             {isPruning ? '…' : 'Prune'}
+          </button>
+        </div>
+        <div style={{ WebkitAppRegion: 'no-drag' }}>
+          <button
+            onClick={onSettings}
+            title="Settings"
+            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
+              text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] cursor-pointer"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
+              <path fillRule="evenodd" d="M8 1 10 3.2 13 3.1 12.8 6 15 8 12.8 10 13 12.9 10 12.8 8 15 6 12.8 3 12.9 3.2 10 1 8 3.2 6 3 3.1 6 3.2Z M10.5 8A2.5 2.5 0 1 0 5.5 8A2.5 2.5 0 1 0 10.5 8Z" />
+            </svg>
+            Settings
           </button>
         </div>
       </div>

@@ -20,7 +20,7 @@ function statusColor(st) {
 function Output({ text, isError }) {
   if (!text) return null;
   return (
-    <pre className={`mt-3 p-2 rounded text-[11px] font-mono max-h-24 overflow-y-auto bg-[#0a0a0a] border border-[#1c1c1c] whitespace-pre-wrap break-all ${isError ? 'text-[#f87171]' : 'text-[#888]'}`}>
+    <pre className={`mt-3 p-2 rounded text-[14px] font-mono max-h-24 overflow-y-auto bg-[#0a0a0a] border border-[#1c1c1c] whitespace-pre-wrap break-all ${isError ? 'text-[#f87171]' : 'text-[#888]'}`}>
       {text}
     </pre>
   );
@@ -150,8 +150,8 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
       >
         {/* Header */}
         <div className="flex items-center justify-between">
-          <span className="text-[13px] font-semibold text-[#ccc]">Git Pipeline</span>
-          <span className="text-[11px] text-[#555]">{branch}</span>
+          <span className="text-[14px] font-semibold text-[#ccc]">Git Pipeline</span>
+          <span className="text-[14px] text-[#555]">{branch}</span>
         </div>
 
         {/* Step indicator */}
@@ -160,7 +160,7 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
             <div key={i} className="flex items-center flex-1 last:flex-none">
               <div className="flex flex-col items-center gap-1">
                 <div className={`w-2 h-2 rounded-full transition-colors ${statusColor(statuses[i])}`} />
-                <span className={`text-[10px] ${step === i ? 'text-[#a78bfa]' : statuses[i] === 'done' ? 'text-[#4ade80]' : 'text-[#444]'}`}>
+                <span className={`text-[12px] ${step === i ? 'text-[#a78bfa]' : statuses[i] === 'done' ? 'text-[#4ade80]' : 'text-[#444]'}`}>
                   {label}
                 </span>
               </div>
@@ -179,10 +179,10 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
                 <circle cx="12" cy="12" r="10" />
                 <polyline points="9 12 11 14 15 10" />
               </svg>
-              <p className="text-[13px] text-[#4ade80]">Готово! Изменения запушены.</p>
+              <p className="text-[14px] text-[#4ade80]">Готово! Изменения запушены.</p>
               <button
                 onClick={onClose}
-                className="mt-1 px-4 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[12px] transition-colors"
+                className="mt-1 px-4 py-1.5 rounded-lg bg-[#7c3aed] hover:bg-[#6d28d9] text-white text-[14px] transition-colors"
               >
                 Закрыть
               </button>
@@ -240,10 +240,11 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
 function StepPull({ branch, running, output, error, isError, onPull, onSkip }) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12px] text-[#888]">
+      <p className="text-[14px] text-[#888]">
         Синхронизировать с удалённым репозиторием:&nbsp;
         <span className="text-[#a78bfa]">origin/{branch}</span>
       </p>
+      <code className="text-[13px] font-mono text-[#555]">git pull origin {branch}</code>
       <div className="flex gap-2">
         <ActionBtn onClick={onPull} disabled={running} primary>
           {running ? 'Pulling…' : 'Pull'}
@@ -261,14 +262,14 @@ function StepStage({ files, selected, running, output, error, isError, onToggle,
   return (
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
-        <p className="text-[12px] text-[#888]">Выберите файлы для стейджинга:</p>
+        <p className="text-[14px] text-[#888]">Выберите файлы для стейджинга:</p>
         <div className="flex gap-3">
-          <button onClick={onSelectAll} className="text-[10px] text-[#555] hover:text-[#a78bfa] transition-colors">все</button>
-          <button onClick={onDeselectAll} className="text-[10px] text-[#555] hover:text-[#a78bfa] transition-colors">снять</button>
+          <button onClick={onSelectAll} className="text-[12px] text-[#555] hover:text-[#a78bfa] transition-colors">все</button>
+          <button onClick={onDeselectAll} className="text-[12px] text-[#555] hover:text-[#a78bfa] transition-colors">снять</button>
         </div>
       </div>
       {files.length === 0 ? (
-        <p className="text-[11px] text-[#444] italic">Нет изменённых файлов</p>
+        <p className="text-[12px] text-[#444] italic">Нет изменённых файлов</p>
       ) : (
         <div className="max-h-32 overflow-y-auto flex flex-col gap-0.5 border border-[#1c1c1c] rounded-lg p-2 bg-[#0f0f0f]">
           {files.map((f) => (
@@ -279,8 +280,8 @@ function StepStage({ files, selected, running, output, error, isError, onToggle,
                 onChange={() => onToggle(f.file)}
                 className="accent-[#7c3aed] w-3 h-3"
               />
-              <span className="text-[10px] font-mono text-[#666] w-6 shrink-0">{f.xy.trim()}</span>
-              <span className="text-[11px] text-[#999] group-hover:text-[#ccc] truncate transition-colors">{f.file}</span>
+              <span className="text-[12px] font-mono text-[#666] w-6 shrink-0">{f.xy.trim()}</span>
+              <span className="text-[12px] text-[#999] group-hover:text-[#ccc] truncate transition-colors">{f.file}</span>
             </label>
           ))}
         </div>
@@ -300,14 +301,14 @@ function StepStage({ files, selected, running, output, error, isError, onToggle,
 function StepCommit({ commitMsg, commitRef, running, output, error, isError, onChange, onCommit }) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12px] text-[#888]">Сообщение коммита:</p>
+      <p className="text-[14px] text-[#888]">Сообщение коммита:</p>
       <textarea
         ref={commitRef}
         value={commitMsg}
         onChange={(e) => onChange(e.target.value)}
         placeholder="feat: добавить новую функцию"
         rows={3}
-        className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-[12px] text-white placeholder-[#444] focus:outline-none focus:border-[#7c3aed] resize-none font-mono"
+        className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-[14px] text-white placeholder-[#444] focus:outline-none focus:border-[#7c3aed] resize-none font-mono"
       />
       <ActionBtn
         onClick={onCommit}
@@ -324,10 +325,11 @@ function StepCommit({ commitMsg, commitRef, running, output, error, isError, onC
 function StepPush({ branch, running, output, error, isError, onPush }) {
   return (
     <div className="flex flex-col gap-3">
-      <p className="text-[12px] text-[#888]">
+      <p className="text-[14px] text-[#888]">
         Отправить изменения в&nbsp;
         <span className="text-[#a78bfa]">origin/{branch}</span>
       </p>
+      <code className="text-[13px] font-mono text-[#555]">git push -u origin {branch}</code>
       <ActionBtn onClick={onPush} disabled={running} primary>
         {running ? 'Pushing…' : 'Push'}
       </ActionBtn>
@@ -341,7 +343,7 @@ function ActionBtn({ onClick, disabled, primary, children }) {
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`px-4 py-1.5 rounded-lg text-[12px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
+      className={`px-4 py-1.5 rounded-lg text-[14px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
         primary
           ? 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white'
           : 'border border-[#2a2a2a] text-[#888] hover:text-[#ccc] hover:border-[#444]'

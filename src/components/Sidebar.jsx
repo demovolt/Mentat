@@ -15,6 +15,7 @@ export default function Sidebar({
   onNewWorktree,
   terminals = [],
   terminalStatuses = {},
+  terminalSessionActive = {},
   worktreeNames = {},
 }) {
   const [collapsed, setCollapsed] = useState({});
@@ -27,7 +28,7 @@ export default function Sidebar({
     <div className="w-56 shrink-0 flex flex-col bg-[#111] border-r border-[#1c1c1c]">
       <div className="flex-1 overflow-y-auto py-2">
         {workspace.length === 0 ? (
-          <p className="text-[11px] text-[#333] text-center mt-10 px-4 leading-relaxed">
+          <p className="text-[12px] text-[#333] text-center mt-10 px-4 leading-relaxed">
             Add a repository<br />to get started
           </p>
         ) : (
@@ -48,21 +49,13 @@ export default function Sidebar({
               onNewWorktree={() => onNewWorktree(repo.path)}
               terminals={terminals}
               terminalStatuses={terminalStatuses}
+              terminalSessionActive={terminalSessionActive}
               worktreeNames={worktreeNames}
             />
           ))
         )}
       </div>
 
-      <div className="px-3 py-3 border-t border-[#1c1c1c]">
-        <button
-          onClick={onAddRepo}
-          className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-md border border-[#2a2a2a] text-[#555] hover:text-[#ccc] hover:border-[#7c3aed33] text-[13px] transition-colors"
-        >
-          <PlusIcon />
-          Add Repository
-        </button>
-      </div>
     </div>
   );
 }
@@ -81,7 +74,7 @@ function repoColor(path) {
 function RepoSection({
   repo, worktrees, activePath, collapsed, onToggle, onRemoveRepo,
   onSelectWorktree, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRenameWorktree, onNewWorktree,
-  terminals, terminalStatuses, worktreeNames,
+  terminals, terminalStatuses, terminalSessionActive, worktreeNames,
 }) {
   const [hovered, setHovered] = useState(false);
   const repoName = repo.path.replace(/\\/g, '/').split('/').filter(Boolean).pop();
@@ -98,24 +91,33 @@ function RepoSection({
         <div className="shrink-0 w-0.5 h-3.5 rounded-full" style={{ backgroundColor: color }} />
         <ChevronIcon collapsed={collapsed} />
         <span
-          className="text-[12px] text-white font-semibold truncate flex-1"
+          className="text-[14px] text-white font-semibold truncate flex-1"
           title={repo.path}
         >
           {repoName}
         </span>
         {hovered && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemoveRepo(); }}
-            title="Remove from workspace"
-            className="shrink-0 w-4 h-4 flex items-center justify-center text-[#444] hover:text-[#f87171] text-[16px] leading-none transition-colors"
-          >
-            ×
-          </button>
+          <>
+            <button
+              onClick={(e) => { e.stopPropagation(); onNewWorktree(); }}
+              title="New Worktree"
+              className="shrink-0 w-4 h-4 flex items-center justify-center text-[#444] hover:text-[#a78bfa] transition-colors"
+            >
+              <PlusIcon />
+            </button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onRemoveRepo(); }}
+              title="Remove from workspace"
+              className="shrink-0 w-4 h-4 flex items-center justify-center text-[#444] hover:text-[#f87171] text-[16px] leading-none transition-colors"
+            >
+              ×
+            </button>
+          </>
         )}
       </div>
 
       {!collapsed && (
-        <div className="pl-3 pr-2 space-y-0.5 mt-0.5">
+        <div className="pl-3 pr-2 space-y-1.5 mt-1.5">
           {worktrees.map(wt => (
             <WorktreeItem
               key={wt.path}
@@ -124,6 +126,7 @@ function RepoSection({
               customName={worktreeNames[wt.path] || null}
               wtTerminals={terminals.filter(t => t.worktreePath === wt.path)}
               terminalStatuses={terminalStatuses}
+              terminalSessionActive={terminalSessionActive}
               onClick={() => onSelectWorktree(wt)}
               onRemoveWorktree={() => onRemoveWorktree(wt.path)}
               onDeleteBranch={() => onDeleteBranch(wt.path)}
@@ -131,20 +134,13 @@ function RepoSection({
               onRename={(name) => onRenameWorktree(wt.path, name)}
             />
           ))}
-          <button
-            onClick={onNewWorktree}
-            className="w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-[#3a3a3a] hover:text-[#666] text-[11px] transition-colors"
-          >
-            <PlusIcon />
-            New Worktree
-          </button>
         </div>
       )}
     </div>
   );
 }
 
-function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
+function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, terminalSessionActive, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -193,22 +189,20 @@ function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, o
 
   const cancelRename = () => setIsRenaming(false);
 
-  const displayName = customName || wt.branch || '(detached)';
+  const folderName = wt.path?.replace(/\\/g, '/').split('/').filter(Boolean).pop() || '(detached)';
+  const displayName = customName || folderName;
 
   return (
     <div
       onClick={isRenaming ? undefined : onClick}
       onMouseEnter={() => setHovered(true)}
       onMouseLeave={() => { if (!menuOpen) setHovered(false); }}
-      className={`relative flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors ${
+      className={`relative flex items-center gap-2 px-2 py-2 rounded-md cursor-pointer transition-colors border ${
         active
-          ? 'bg-[#1a1130] text-white'
-          : 'text-[#888] hover:bg-[#181818] hover:text-[#ccc]'
+          ? 'bg-[#1a1130] border-[#7c3aed] text-white'
+          : 'bg-[#191919] border-[#252525] text-[#888] hover:border-[#333] hover:text-[#ccc]'
       }`}
     >
-      {active && (
-        <div className="absolute left-0 inset-y-1.5 w-0.5 bg-[#7c3aed] rounded-full" />
-      )}
       <div className="flex-1 min-w-0" onClick={(e) => isRenaming && e.stopPropagation()}>
         {isRenaming ? (
           <input
@@ -222,19 +216,28 @@ function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, o
             }}
             onBlur={commitRename}
             onClick={(e) => e.stopPropagation()}
-            className="w-full bg-[#0f0f0f] border border-[#7c3aed] rounded px-1.5 py-0.5 text-[12px] text-white focus:outline-none"
+            className="w-full bg-[#0f0f0f] border border-[#7c3aed] rounded px-1.5 py-0.5 text-[14px] text-white focus:outline-none"
           />
         ) : (
-          <div className="text-[12px] font-medium truncate leading-tight" title={customName ? wt.branch : undefined}>
-            {displayName}
-          </div>
+          <>
+            <div className="text-[14px] font-medium truncate leading-tight">
+              {displayName}
+            </div>
+            {wt.branch && (
+              <div className="flex items-center gap-1 mt-0.5">
+                <BranchIcon />
+                <span className="text-[12px] text-[#555] truncate leading-tight">{wt.branch}</span>
+              </div>
+            )}
+          </>
         )}
-        {!isRenaming && (
+        {!isRenaming && wtTerminals.length > 0 && (
           <div className="flex items-center gap-1 mt-1">
-            {wtTerminals.length > 0
-              ? wtTerminals.map(t => <StatusDot key={t.id} status={terminalStatuses[t.id]} />)
-              : <StatusDot status={null} />
-            }
+            {wtTerminals.map(t =>
+              terminalSessionActive[t.id]
+                ? <StatusDot key={t.id} status={terminalStatuses[t.id]} />
+                : <TerminalIndicator key={t.id} />
+            )}
           </div>
         )}
       </div>
@@ -285,7 +288,7 @@ function DropMenuItem({ onClick, danger, children, submenu }) {
       >
         <button
           onClick={(e) => e.stopPropagation()}
-          className="w-full text-left px-3 py-1 text-[11px] text-[#aaa] hover:bg-[#222] hover:text-[#ccc] transition-colors flex items-center justify-between"
+          className="w-full text-left px-3 py-1 text-[12px] text-[#aaa] hover:bg-[#222] hover:text-[#ccc] transition-colors flex items-center justify-between"
         >
           {children}
           <span className="text-[#555] ml-2">›</span>
@@ -302,7 +305,7 @@ function DropMenuItem({ onClick, danger, children, submenu }) {
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-1 text-[11px] transition-colors ${
+      className={`w-full text-left px-3 py-1 text-[12px] transition-colors ${
         danger ? 'text-[#f87171] hover:bg-[#2a1414]' : 'text-[#aaa] hover:bg-[#222] hover:text-[#ccc]'
       }`}
     >
@@ -329,6 +332,18 @@ function ChevronIcon({ collapsed }) {
 }
 
 
+function BranchIcon() {
+  return (
+    <svg width="9" height="10" viewBox="0 0 9 10" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[#555]">
+      <circle cx="2" cy="2" r="1" />
+      <circle cx="2" cy="8" r="1" />
+      <circle cx="7" cy="4" r="1" />
+      <line x1="2" y1="3" x2="2" y2="7" />
+      <path d="M2 3 Q2 4 7 4" />
+    </svg>
+  );
+}
+
 function PlusIcon() {
   return (
     <svg width="12" height="12" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
@@ -338,17 +353,31 @@ function PlusIcon() {
   );
 }
 
+function TerminalIndicator() {
+  return (
+    <span className="flex items-center gap-1">
+      <svg width="9" height="9" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="shrink-0 text-[#444]">
+        <polyline points="2 4 6 6 2 8" />
+        <line x1="7" y1="8" x2="11" y2="8" />
+      </svg>
+      <span className="text-[12px] leading-none text-[#444]">Terminal</span>
+    </span>
+  );
+}
+
 function StatusDot({ status }) {
   const styles = {
-    working:  { cls: 'bg-green-500',  title: 'Claude работает' },
-    thinking: { cls: 'bg-blue-500',   title: 'Claude думает' },
-    waiting:  { cls: 'bg-yellow-400', title: 'Claude ожидает разрешения' },
+    working:  { dot: 'bg-green-500',  text: 'text-green-500',  label: 'Working' },
+    thinking: { dot: 'bg-blue-500',   text: 'text-blue-500',   label: 'Thinking' },
+    waiting:  { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'Waiting' },
   };
   const s = styles[status];
   return (
-    <span
-      title={s ? s.title : 'Claude ожидает'}
-      className={`shrink-0 w-2 h-2 rounded-full ${s ? s.cls : 'bg-[#444]'}`}
-    />
+    <span className="flex items-center gap-1">
+      <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${s ? s.dot : 'bg-[#444]'}`} />
+      <span className={`text-[12px] leading-none ${s ? s.text : 'text-[#444]'}`}>
+        {s ? s.label : 'Idle'}
+      </span>
+    </span>
   );
 }
