@@ -13,6 +13,7 @@ function newTermId() { return `term-${++_counter}-${Date.now()}`; }
 
 const DEFAULT_SETTINGS = {
   ai: 'claude',
+  loggingEnabled: false,
   console: {
     fontFamily: "'Ubuntu Mono', 'Consolas', monospace",
     fontSize: 13,
@@ -90,7 +91,7 @@ export default function App() {
         const allValidPaths = new Set(Object.values(newWorktreesMap).flat().map(wt => wt.path));
         const restored = saved.terminals
           .filter(t => allValidPaths.has(t.worktreePath))
-          .map(t => ({ id: newTermId(), worktreePath: t.worktreePath, label: t.label, shellId: t.shellId || null, type: t.type || null }));
+          .map(t => ({ id: newTermId(), worktreePath: t.worktreePath, label: t.label, shellId: t.shellId || null, type: t.type || null, sessionId: t.sessionId || null }));
 
         setTerminals(restored);
 
@@ -115,9 +116,14 @@ export default function App() {
 
   useEffect(() => {
     if (!stateLoaded.current) return;
+    window.api.setLoggingEnabled(settings.loggingEnabled ?? false);
+  }, [settings.loggingEnabled]);
+
+  useEffect(() => {
+    if (!stateLoaded.current) return;
     window.api.saveState({
       activeWorktreePath,
-      terminals: terminals.map(({ worktreePath, label, shellId, type }) => ({ worktreePath, label, shellId, type: type || null })),
+      terminals: terminals.map(({ worktreePath, label, shellId, type, sessionId }) => ({ worktreePath, label, shellId, type: type || null, sessionId: sessionId || null })),
       worktreeNames,
     });
   }, [terminals, activeWorktreePath, worktreeNames]);
@@ -128,6 +134,12 @@ export default function App() {
       setTerminalSessionActive(prev => ({ ...prev, [termId]: sessionActive }));
     });
     return unsub;
+  }, []);
+
+  useEffect(() => {
+    return window.api.onSessionIdUpdated(({ termId, sessionId }) => {
+      setTerminals(prev => prev.map(t => t.id === termId ? { ...t, sessionId } : t));
+    });
   }, []);
 
   // ── Terminal management ───────────────────────────────────────────────────
@@ -186,6 +198,13 @@ export default function App() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    const unsub = window.api.onTerminalExited(({ termId }) => {
+      handleCloseTerminal(termId);
+    });
+    return unsub;
+  }, [handleCloseTerminal]);
 
   const handleRenameWorktree = useCallback((worktreePath, name) => {
     setWorktreeNames(prev => {
@@ -390,6 +409,7 @@ export default function App() {
                 lineHeight={settings.console.lineHeight}
                 type={t.type}
                 aiCommand={aiCommand}
+                sessionId={t.sessionId}
               />
             ))}
             {!activeTerminalId && (

@@ -6,8 +6,46 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const http = require('http');
 const os = require('os');
+const { parseWorktrees, parseWslPath, winToLinux, isRunningInWSL, gitRun } = require('./helpers');
 
 const isDev = process.env.ELECTRON_IS_DEV === '1';
+
+// ── Logger ────────────────────────────────────────────────────────────────────
+
+let logEnabled = false;
+let logStream = null;
+
+function getLogPath() {
+  return isDev
+    ? path.join(app.getAppPath(), 'mentat.log')
+    : path.join(path.dirname(process.execPath), 'mentat.log');
+}
+
+function log(level, ...args) {
+  if (!logEnabled) return;
+  const line = `[${new Date().toISOString()}] [${level}] ${args.join(' ')}`;
+  if (!logStream) logStream = fs.createWriteStream(getLogPath(), { flags: 'a' });
+  logStream.write(line + '\n');
+}
+
+function setLoggingEnabled(enabled) {
+  logEnabled = !!enabled;
+  if (!enabled && logStream) { logStream.end(); logStream = null; }
+  if (enabled) log('INFO', 'Logging enabled. Path:', getLogPath());
+}
+
+// ── Global exception handlers ─────────────────────────────────────────────────
+
+process.on('uncaughtException', (err) => {
+  log('ERROR', 'uncaughtException:', err.stack || err.message);
+  console.error('[mentat] uncaughtException:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  const msg = reason instanceof Error ? reason.stack : String(reason);
+  log('ERROR', 'unhandledRejection:', msg);
+  console.error('[mentat] unhandledRejection:', reason);
+});
 
 let pty;
 try {
@@ -23,13 +61,34 @@ let mainWindow;
 
 const terminalStatuses = new Map();
 const terminalSessionActive = new Map();
+const terminalSessionIds = new Map();
 let statusServer = null;
 
 function startStatusServer() {
   statusServer = http.createServer((req, res) => {
-    if (req.method !== 'POST' || req.url !== '/status') {
-      res.writeHead(404).end(); return;
+    if (req.method !== 'POST') { res.writeHead(404).end(); return; }
+
+    if (req.url === '/session') {
+      let body = '';
+      req.on('data', chunk => { body += chunk; });
+      req.on('end', () => {
+        try {
+          const { termId, sessionId } = JSON.parse(body);
+          if (!termId || !sessionId) { res.writeHead(400).end(); return; }
+          if (!terminalSessionIds.has(termId)) {
+            terminalSessionIds.set(termId, sessionId);
+            log('INFO', 'Session id assigned:', termId, sessionId);
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.send('session:id-updated', { termId, sessionId });
+            }
+          }
+          res.writeHead(200).end('ok');
+        } catch { res.writeHead(400).end(); }
+      });
+      return;
     }
+
+    if (req.url !== '/status') { res.writeHead(404).end(); return; }
     let body = '';
     req.on('data', chunk => { body += chunk; });
     req.on('end', () => {
@@ -39,6 +98,7 @@ function startStatusServer() {
         if (!termId || !validStatuses.includes(status)) {
           res.writeHead(400).end(); return;
         }
+        log('INFO', 'Status update:', termId, status);
         if (status === 'session_start') {
           terminalSessionActive.set(termId, true);
         } else if (status === 'session_stop') {
@@ -58,9 +118,12 @@ function startStatusServer() {
     });
   });
   statusServer.on('error', err => {
+    log('ERROR', 'Status server error:', err.message);
     if (err.code !== 'EADDRINUSE') console.error('[mentat] status server:', err);
   });
-  statusServer.listen(27182, '0.0.0.0');
+  statusServer.listen(27182, '0.0.0.0', () => {
+    log('INFO', 'Status server listening on :27182');
+  });
 }
 
 // ── Config ────────────────────────────────────────────────────────────────────
@@ -76,12 +139,16 @@ function loadConfig() {
     if (!raw.workspace) raw.workspace = [];
     if (!raw.aiCommand) raw.aiCommand = 'claude';
     return raw;
-  } catch { return { workspace: [], aiCommand: 'claude' }; }
+  } catch (e) {
+    log('WARN', 'Config load failed (using defaults):', e.message);
+    return { workspace: [], aiCommand: 'claude' };
+  }
 }
 
 function saveConfig(cfg) {
   fs.mkdirSync(path.dirname(configFile), { recursive: true });
   fs.writeFileSync(configFile, JSON.stringify(cfg, null, 2));
+  log('INFO', 'Config saved');
 }
 
 const stateFile = path.join(app.getPath('userData'), 'state.json');
@@ -96,17 +163,6 @@ function saveState(state) {
 }
 
 // ── WSL path helpers ──────────────────────────────────────────────────────────
-
-// Parses \\wsl.localhost\Ubuntu\home\... or \\wsl$\Ubuntu\home\...
-function parseWslPath(p) {
-  if (!p || process.platform !== 'win32') return null;
-  const m = p.replace(/\\/g, '/').match(/^\/\/(wsl\.localhost|wsl\$)\/([^/]+)(\/.*)?$/i);
-  return m ? { distro: m[2], linuxPath: m[3] || '/' } : null;
-}
-
-function winToLinux(distro, linuxPath) {
-  return `\\\\wsl.localhost\\${distro}${linuxPath.replace(/\//g, '\\')}`;
-}
 
 // ── Cross-boundary status host detection ─────────────────────────────────────
 
@@ -176,6 +232,16 @@ function setupWindowsHooks() {
     'param([string]$status)',
     'if (-not $env:MENTAT_TERM_ID) { exit 0 }',
     "$h = if ($env:MENTAT_STATUS_HOST) { $env:MENTAT_STATUS_HOST } else { '127.0.0.1' }",
+    'if ($status -eq \'idle\') {',
+    '    try {',
+    '        $raw = [Console]::In.ReadToEnd()',
+    '        $json = $raw | ConvertFrom-Json -ErrorAction SilentlyContinue',
+    '        if ($json -and $json.session_id) {',
+    '            $sesBody = \'{"termId":"\' + $env:MENTAT_TERM_ID + \'","sessionId":"\' + $json.session_id + \'"}\' ',
+    '            try { curl.exe -s -X POST "http://$($h):27182/session" -H \'Content-Type: application/json\' -d $sesBody 2>$null } catch {}',
+    '        }',
+    '    } catch {}',
+    '}',
     '$body = \'{"termId":"\' + $env:MENTAT_TERM_ID + \'","status":"\' + $status + \'"}\' ',
     'try { curl.exe -s -X POST "http://$($h):27182/status" -H \'Content-Type: application/json\' -d $body 2>$null } catch {}',
   ].join('\n');
@@ -183,25 +249,6 @@ function setupWindowsHooks() {
   try {
     fs.mkdirSync(claudeDir, { recursive: true });
     fs.writeFileSync(scriptPath, psScript, 'utf8');
-
-    let existing = {};
-    try { existing = JSON.parse(fs.readFileSync(settingsPath, 'utf8')); } catch {}
-
-    // Only write hooks if Mentat hooks aren't already configured
-    if (!existing.hooks?.PreToolUse && !existing.hooks?.Stop) {
-      const mkHook = (status) => ({
-        hooks: [{ type: 'command', command: `powershell.exe -NoProfile -NonInteractive -File "${scriptPath}" ${status}` }],
-      });
-      const settings = {
-        ...existing,
-        hooks: {
-          ...(existing.hooks || {}),
-          PreToolUse: [mkHook('working')],
-          Stop: [mkHook('idle')],
-        },
-      };
-      fs.writeFileSync(settingsPath, JSON.stringify(settings, null, 2), 'utf8');
-    }
   } catch (e) {
     console.error('[mentat] setupWindowsHooks failed:', e.message);
   }
@@ -330,6 +377,7 @@ function setupPowerShellWrapper() {
   }
 }
 
+<<<<<<< Updated upstream
 // ── Codex wrappers & hooks ────────────────────────────────────────────────────
 
 const BASH_CODEX_WRAP_CONTENT = [
@@ -378,12 +426,42 @@ function setupUnixCodexWrapper() {
 }
 
 function setupWslCodexWrapper() {
+=======
+// Shell script that Claude's Stop hook runs — reads session_id from stdin and POSTs to /session
+const SESSION_HOOK_SCRIPT = [
+  '#!/bin/bash',
+  'data=$(cat)',
+  'session_id=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get(\'session_id\',\'\'))" 2>/dev/null)',
+  'term_id="$MENTAT_TERM_ID"',
+  '_h="${MENTAT_STATUS_HOST:-127.0.0.1}"',
+  '[ -n "$session_id" ] && [ -n "$term_id" ] && \\',
+  '  curl -s -o /dev/null -m 2 -X POST "http://$_h:27182/session" \\',
+  '    -H \'Content-Type: application/json\' \\',
+  '    -d "{\\"termId\\":\\"$term_id\\",\\"sessionId\\":\\"$session_id\\"}" 2>/dev/null || true',
+].join('\n');
+function setupUnixSessionHook() {
+  if (process.platform === 'win32') return;
+  const homeDir = process.env.HOME;
+  if (!homeDir) return;
+  const claudeDir = path.join(homeDir, '.claude');
+  const scriptPath = path.join(claudeDir, 'mentat-session-hook.sh');
+  try {
+    fs.mkdirSync(claudeDir, { recursive: true });
+    fs.writeFileSync(scriptPath, SESSION_HOOK_SCRIPT, { encoding: 'utf8', mode: 0o755 });
+  } catch (e) {
+    console.error('[mentat] setupUnixSessionHook failed:', e.message);
+  }
+}
+
+function setupWslSessionHook() {
+>>>>>>> Stashed changes
   if (process.platform !== 'win32') return;
   try {
     const raw = execFileSync('wsl.exe', ['-l', '-q'], { encoding: 'utf16le', timeout: 4000 });
     const distro = raw.split('\n').map(l => l.replace(/\0/g, '').trim()).find(l => l);
     if (!distro) return;
 
+<<<<<<< Updated upstream
     const b64 = Buffer.from(BASH_CODEX_WRAP_CONTENT, 'utf8').toString('base64');
     const bashCmd = [
       `mkdir -p ~/.codex`,
@@ -565,37 +643,22 @@ function setupWindowsCodexHooks() {
     }
   } catch (e) {
     console.error('[mentat] setupWindowsCodexHooks failed:', e.message);
+=======
+    const b64Script = Buffer.from(SESSION_HOOK_SCRIPT, 'utf8').toString('base64');
+
+    const bashCmd = [
+      `mkdir -p ~/.claude`,
+      `echo '${b64Script}' | base64 -d > ~/.claude/mentat-session-hook.sh`,
+      `chmod +x ~/.claude/mentat-session-hook.sh`,
+    ].join(' && ');
+    execFileSync('wsl.exe', ['-d', distro, '--', 'bash', '-c', bashCmd], { timeout: 10000 });
+  } catch (e) {
+    console.error('[mentat] setupWslSessionHook failed:', e.message);
+>>>>>>> Stashed changes
   }
 }
 
 // ── Git helpers ───────────────────────────────────────────────────────────────
-
-function gitRun(cwd, args) {
-  const wsl = parseWslPath(cwd);
-  if (wsl) {
-    return execFileSync(
-      'wsl.exe',
-      ['-d', wsl.distro, '--cd', wsl.linuxPath, 'git', ...args],
-      { encoding: 'utf8' }
-    ).trimEnd();
-  }
-  return execFileSync('git', args, { cwd, encoding: 'utf8' }).trimEnd();
-}
-
-function parseWorktrees(output) {
-  const result = [];
-  for (const block of output.split('\n\n').filter(Boolean)) {
-    const wt = {};
-    for (const line of block.trim().split('\n')) {
-      if (line.startsWith('worktree ')) wt.path = line.slice(9);
-      else if (line.startsWith('branch ')) wt.branch = line.slice(7).replace('refs/heads/', '');
-      else if (line === 'detached') wt.branch = '(detached)';
-      else if (line.startsWith('HEAD ')) wt.head = line.slice(5);
-    }
-    if (wt.path) result.push(wt);
-  }
-  return result;
-}
 
 // ── Window ────────────────────────────────────────────────────────────────────
 
@@ -614,6 +677,14 @@ function createWindow() {
     },
   });
 
+  log('INFO', 'Window created');
+
+  mainWindow.webContents.on('render-process-gone', (_e, details) => {
+    log('ERROR', 'Renderer process gone:', JSON.stringify(details));
+  });
+
+  mainWindow.on('closed', () => log('INFO', 'Window closed'));
+
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
   } else {
@@ -622,6 +693,9 @@ function createWindow() {
 }
 
 app.whenReady().then(() => {
+  const cfg = loadConfig();
+  if (cfg.settings?.loggingEnabled) setLoggingEnabled(true);
+  log('INFO', 'App ready');
   createWindow();
   startStatusServer();
   ensureFirewallRule();
@@ -629,19 +703,26 @@ app.whenReady().then(() => {
   setupUnixClaudeWrapper();
   setupWslClaudeWrapper();
   setupPowerShellWrapper();
+<<<<<<< Updated upstream
   setupUnixCodexWrapper();
   setupWslCodexWrapper();
   setupPowerShellCodexWrapper();
   setupUnixCodexHooks();
   setupWslCodexHooks();
   setupWindowsCodexHooks();
+=======
+  setupUnixSessionHook();
+  setupWslSessionHook();
+>>>>>>> Stashed changes
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('window-all-closed', () => {
+  log('INFO', 'All windows closed');
   statusServer?.close();
+  if (logStream) { logStream.end(); logStream = null; }
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -655,13 +736,6 @@ ipcMain.on('window:toggle-maximize', () => {
 ipcMain.on('window:close', () => mainWindow?.close());
 
 // ── Shell profiles ────────────────────────────────────────────────────────────
-
-function isRunningInWSL() {
-  try {
-    return process.platform === 'linux' &&
-      fs.readFileSync('/proc/version', 'utf8').toLowerCase().includes('microsoft');
-  } catch { return false; }
-}
 
 function getShellProfiles() {
   if (process.platform === 'win32') {
@@ -717,6 +791,12 @@ function getShellProfiles() {
 
   return profiles;
 }
+
+// ── Logging IPC ───────────────────────────────────────────────────────────────
+
+ipcMain.handle('logging:set-enabled', (_e, enabled) => setLoggingEnabled(enabled));
+ipcMain.handle('logging:get-path', () => getLogPath());
+ipcMain.on('log:renderer-error', (_e, msg) => log('ERROR', '[renderer]', msg));
 
 // ── Config IPC ────────────────────────────────────────────────────────────────
 
@@ -777,6 +857,7 @@ ipcMain.handle('git:get-worktrees', (_e, repoPath) => {
 
 ipcMain.handle('git:create-worktree', (_e, { repoPath, branch, baseBranch }) => {
   try {
+    log('INFO', 'git:create-worktree', branch, 'from', baseBranch);
     const dirName = branch.replace(/\//g, '-').replace(/[^a-zA-Z0-9._-]/g, '_');
     const wsl = parseWslPath(repoPath);
 
@@ -792,6 +873,7 @@ ipcMain.handle('git:create-worktree', (_e, { repoPath, branch, baseBranch }) => 
           `echo "internalFolder/" >> "$GITDIR/info/exclude"`
         ], { encoding: 'utf8', timeout: 5000 });
       } catch (e) {
+        log('WARN', 'internalFolder setup failed:', e.message);
         console.error('[mentat] internalFolder setup failed:', e.message);
       }
       return { success: true };
@@ -807,16 +889,19 @@ ipcMain.handle('git:create-worktree', (_e, { repoPath, branch, baseBranch }) => 
       fs.mkdirSync(infoDir, { recursive: true });
       fs.appendFileSync(path.join(infoDir, 'exclude'), '\ninternalFolder/\n');
     } catch (e) {
+      log('WARN', 'internalFolder setup failed:', e.message);
       console.error('[mentat] internalFolder setup failed:', e.message);
     }
     return { success: true };
   } catch (e) {
+    log('ERROR', 'git:create-worktree failed:', e.message);
     return { success: false, error: e.message };
   }
 });
 
 ipcMain.handle('git:remove-worktree', (_e, { repoPath, worktreePath }) => {
   try {
+    log('INFO', 'git:remove-worktree', worktreePath);
     const wsl = parseWslPath(worktreePath);
     const target = wsl ? wsl.linuxPath : worktreePath;
     try { gitRun(repoPath, ['worktree', 'remove', '--force', target]); } catch {}
@@ -824,6 +909,7 @@ ipcMain.handle('git:remove-worktree', (_e, { repoPath, worktreePath }) => {
     if (fs.existsSync(worktreePath)) fs.rmSync(worktreePath, { recursive: true, force: true });
     return { success: true };
   } catch (e) {
+    log('ERROR', 'git:remove-worktree failed:', e.message);
     return { success: false, error: e.message };
   }
 });
@@ -888,8 +974,9 @@ ipcMain.handle('git:push', (_e, dirPath, branch) => {
 
 // ── PTY IPC ───────────────────────────────────────────────────────────────────
 
-ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId }) => {
+ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId, type, aiCommand, sessionId }) => {
   if (!pty) return;
+  log('INFO', 'PTY create:', termId, 'path:', worktreePath, 'type:', type || 'shell', 'shell:', shellId || 'default');
 
   const wsl = parseWslPath(worktreePath);
   const profile = shellId ? getShellProfiles().find(p => p.id === shellId) : null;
@@ -932,7 +1019,29 @@ ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId }) => {
 
   let proc;
 
-  if (profile?.wsl) {
+  if (type === 'ai') {
+    const parts = (aiCommand || 'claude').trim().split(/\s+/);
+    const [claudeExe, ...claudeArgs] = parts;
+    const resumeArgs = sessionId ? ['--resume', sessionId] : [];
+
+    terminalSessionActive.set(termId, true);
+    if (mainWindow && !mainWindow.isDestroyed())
+      mainWindow.webContents.send('worktree:status-changed', { termId, status: null, sessionActive: true });
+
+    if (wsl && process.platform === 'win32') {
+      // Use bash --login to source ~/.bashrc / ~/.bash_profile so user's PATH
+      // (e.g. ~/.local/bin, ~/.npm/bin) is available and claude can be found.
+      const allArgs = [claudeExe, ...resumeArgs, ...claudeArgs];
+      const cmdStr = allArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
+      proc = pty.spawn(
+        'wsl.exe',
+        ['-d', wsl.distro, '--cd', wsl.linuxPath, '--', 'bash', '--login', '-c', `exec ${cmdStr}`],
+        spawnOpts(process.env.USERPROFILE || 'C:\\', statusEnv)
+      );
+    } else {
+      proc = pty.spawn(claudeExe, [...resumeArgs, ...claudeArgs], spawnOpts(worktreePath, statusEnv));
+    }
+  } else if (profile?.wsl) {
     const linuxPath = wsl ? wsl.linuxPath : worktreePath;
     proc = pty.spawn('wsl.exe', ['-d', profile.distro, '--cd', linuxPath],
       spawnOpts(process.env.USERPROFILE || 'C:\\', statusEnv));
@@ -964,6 +1073,8 @@ ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId }) => {
     ptyFlushTimer = null;
   };
 
+  ptyProcesses.set(termId, proc);
+
   proc.onData(data => {
     ptyBuffer += data;
     if (!ptyFlushTimer) {
@@ -971,16 +1082,29 @@ ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId }) => {
     }
   });
 
-  proc.onExit(() => {
+  proc.onExit(({ exitCode }) => {
     if (ptyFlushTimer) { clearTimeout(ptyFlushTimer); flushPtyBuffer(); }
     ptyProcesses.delete(termId);
+    log('INFO', 'PTY exited:', termId, 'exitCode:', exitCode);
+    if (type === 'ai') {
+      terminalSessionActive.set(termId, false);
+      terminalStatuses.delete(termId);
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send('worktree:status-changed', { termId, status: null, sessionActive: false });
+        mainWindow.webContents.send('pty:exited', { termId });
+      }
+    }
   });
-  ptyProcesses.set(termId, proc);
 });
 
-ipcMain.on('pty:write', (_e, { termId, data }) => ptyProcesses.get(termId)?.write(data));
-ipcMain.on('pty:resize', (_e, { termId, cols, rows }) => ptyProcesses.get(termId)?.resize(cols, rows));
+ipcMain.on('pty:write', (_e, { termId, data }) => {
+  try { ptyProcesses.get(termId)?.write(data); } catch {}
+});
+ipcMain.on('pty:resize', (_e, { termId, cols, rows }) => {
+  try { ptyProcesses.get(termId)?.resize(cols, rows); } catch {}
+});
 ipcMain.on('pty:close', (_e, { termId }) => {
+  log('INFO', 'PTY close:', termId);
   const proc = ptyProcesses.get(termId);
   if (proc) { proc.kill(); ptyProcesses.delete(termId); }
 });

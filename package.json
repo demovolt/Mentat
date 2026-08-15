@@ -10,7 +10,13 @@
     "package:win": "vite build && electron-builder --win",
     "package:mac": "vite build && electron-builder --mac",
     "package:linux": "vite build && electron-builder --linux",
-    "postinstall": "electron-builder install-app-deps"
+    "postinstall": "electron-builder install-app-deps",
+    "test": "vitest run --workspace vitest.workspace.js",
+    "test:watch": "vitest --workspace vitest.workspace.js",
+    "test:coverage": "vitest run --workspace vitest.workspace.js --coverage",
+    "test:renderer": "vitest run --config vitest.config.renderer.js",
+    "test:main": "vitest run --config vitest.config.main.js",
+    "test:e2e": "playwright test"
   },
   "build": {
     "appId": "com.mentat.app",
@@ -30,7 +36,6 @@
     ],
     "win": {
       "target": [
-        "zip",
         "portable"
       ],
       "signAndEditExecutable": false
@@ -54,19 +59,26 @@
     "node-pty": "^1.0.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.4",
     "@vitejs/plugin-react": "^4.3.4",
+    "@vitest/coverage-v8": "^4.1.10",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/xterm": "^5.5.0",
     "autoprefixer": "^10.4.20",
     "concurrently": "^9.1.2",
     "electron": "^32.2.7",
     "electron-builder": "^25.1.8",
+    "jsdom": "^29.1.1",
     "playwright-core": "^1.62.1",
     "postcss": "^8.4.49",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "tailwindcss": "^3.4.16",
     "vite": "^6.0.7",
+    "vitest": "^4.1.10",
     "wait-on": "^8.0.1"
   }
 }

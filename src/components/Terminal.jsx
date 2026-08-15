@@ -6,12 +6,11 @@ import { WebLinksAddon } from '@xterm/addon-web-links';
 import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 
-export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight, type, aiCommand }) {
+export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight, type, aiCommand, sessionId }) {
   const containerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const activeRef = useRef(active);
-  const aiSentRef = useRef(false);
   activeRef.current = active;
 
   // Mount xterm once
@@ -60,26 +59,18 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
     xterm.loadAddon(new WebLinksAddon((_, url) => window.open(url, '_blank')));
     xterm.loadAddon(new ClipboardAddon());
 
-    let webglAddon = null;
-    let webglDisposed = false;
     try {
-      const canvas = document.createElement('canvas');
-      const gl = canvas.getContext('webgl2') || canvas.getContext('webgl');
-      if (gl) {
-        const ext = gl.getExtension('WEBGL_debug_renderer_info');
-        const renderer = ext ? gl.getParameter(ext.UNMASKED_RENDERER_WEBGL) : '';
-        const isSoftware = /swiftshader|software|llvmpipe|mesa/i.test(renderer);
-        if (!isSoftware) {
-          webglAddon = new WebglAddon();
-          webglAddon.onContextLoss(() => {
-            if (!webglDisposed) {
-              webglDisposed = true;
-              webglAddon.dispose();
-            }
-          });
-          xterm.loadAddon(webglAddon);
+      const webgl = new WebglAddon();
+      let webglDisposed = false;
+      const originalDispose = webgl.dispose.bind(webgl);
+      webgl.dispose = () => {
+        if (!webglDisposed) {
+          webglDisposed = true;
+          try { originalDispose(); } catch {}
         }
-      }
+      };
+      webgl.onContextLoss(() => webgl.dispose());
+      xterm.loadAddon(webgl);
     } catch {
       // fallback to canvas renderer
     }
@@ -135,7 +126,7 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
       }
     });
 
-    window.api.createTerminal(termId, worktreePath, shellId);
+    window.api.createTerminal(termId, worktreePath, shellId, type, aiCommand, sessionId);
 
     // Double rAF: wait for browser to complete layout before fitting
     let raf1, raf2;
@@ -155,7 +146,6 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
       cancelAnimationFrame(raf2);
       obs.disconnect();
       window.api.closeTerminal(termId);
-      webglDisposed = true;
       xterm.dispose();
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -187,14 +177,8 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
     return window.api.onTerminalData(({ termId: id, data }) => {
       if (id !== termId) return;
       xtermRef.current?.write(data);
-      if (type === 'ai' && !aiSentRef.current) {
-        aiSentRef.current = true;
-        setTimeout(() => {
-          window.api.writeTerminal(termId, `${aiCommand || 'claude'}\r`);
-        }, 150);
-      }
     });
-  }, [termId, type, aiCommand]);
+  }, [termId]);
 
   // Focus + fit when this terminal becomes visible
   useEffect(() => {

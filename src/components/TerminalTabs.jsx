@@ -26,7 +26,7 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
         <div
           key={tab.id}
           onClick={() => onSelect(tab.id)}
-          className={`flex items-center gap-1.5 px-3 h-8 cursor-pointer border-r border-[#1c1c1c] text-[14px] group shrink-0 select-none transition-colors ${
+          className={`flex items-center gap-1.5 px-3 h-8 cursor-pointer border-r border-[#1c1c1c] text-[12px] group shrink-0 select-none transition-colors ${
             tab.id === activeId
               ? 'bg-[#0f0f0f] text-[#ddd]'
               : 'text-[#555] hover:text-[#999] hover:bg-[#0d0d0d]'

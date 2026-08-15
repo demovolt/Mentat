@@ -29,8 +29,8 @@ contextBridge.exposeInMainWorld('api', {
   gitPush:          (p, branch) => ipcRenderer.invoke('git:push', p, branch),
 
   // PTY
-  createTerminal: (termId, worktreePath, shellId) =>
-    ipcRenderer.send('pty:create', { termId, worktreePath, shellId }),
+  createTerminal: (termId, worktreePath, shellId, type, aiCommand, sessionId) =>
+    ipcRenderer.send('pty:create', { termId, worktreePath, shellId, type, aiCommand, sessionId }),
   writeTerminal: (termId, data) =>
     ipcRenderer.send('pty:write', { termId, data }),
   resizeTerminal: (termId, cols, rows) =>
@@ -47,6 +47,16 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('worktree:status-changed', handler);
     return () => ipcRenderer.removeListener('worktree:status-changed', handler);
   },
+  onTerminalExited: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('pty:exited', handler);
+    return () => ipcRenderer.removeListener('pty:exited', handler);
+  },
+  onSessionIdUpdated: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('session:id-updated', handler);
+    return () => ipcRenderer.removeListener('session:id-updated', handler);
+  },
 
   // Clipboard (synchronous Electron API — navigator.clipboard is unreliable in renderer)
   clipboardRead: () => clipboard.readText(),
@@ -56,4 +66,9 @@ contextBridge.exposeInMainWorld('api', {
   minimize: () => ipcRenderer.send('window:minimize'),
   toggleMaximize: () => ipcRenderer.send('window:toggle-maximize'),
   close: () => ipcRenderer.send('window:close'),
+
+  // Logging
+  setLoggingEnabled: (enabled) => ipcRenderer.invoke('logging:set-enabled', enabled),
+  getLogPath: () => ipcRenderer.invoke('logging:get-path'),
+  logError: (msg) => ipcRenderer.send('log:renderer-error', msg),
 });

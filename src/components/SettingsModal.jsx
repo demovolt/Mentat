@@ -86,6 +86,14 @@ export default function SettingsModal({ settings, onSettingsChange, onClose }) {
 }
 
 function GeneralTab({ settings, set }) {
+  const [logPath, setLogPath] = useState('');
+
+  useEffect(() => {
+    if (settings.loggingEnabled) {
+      window.api.getLogPath().then(p => setLogPath(p || ''));
+    }
+  }, [settings.loggingEnabled]);
+
   return (
     <div className="flex flex-col gap-6">
       <Section label="Default AI">
@@ -103,6 +111,28 @@ function GeneralTab({ settings, set }) {
               {ai.label}
             </button>
           ))}
+        </div>
+      </Section>
+
+      <Section label="Logging">
+        <div className="flex flex-col items-end gap-1.5">
+          <button
+            onClick={() => set('loggingEnabled', !settings.loggingEnabled)}
+            className={`relative w-10 h-5 rounded-full transition-colors ${
+              settings.loggingEnabled ? 'bg-[#7c3aed]' : 'bg-[#2a2a2a]'
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${
+                settings.loggingEnabled ? 'translate-x-5' : 'translate-x-0'
+              }`}
+            />
+          </button>
+          {settings.loggingEnabled && logPath && (
+            <span className="text-[11px] text-[#444] max-w-[180px] truncate text-right" title={logPath}>
+              {logPath}
+            </span>
+          )}
         </div>
       </Section>
     </div>
