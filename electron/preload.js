@@ -71,4 +71,8 @@ contextBridge.exposeInMainWorld('api', {
   setLoggingEnabled: (enabled) => ipcRenderer.invoke('logging:set-enabled', enabled),
   getLogPath: () => ipcRenderer.invoke('logging:get-path'),
   logError: (msg) => ipcRenderer.send('log:renderer-error', msg),
+
+  // Connection
+  checkConnection: () => ipcRenderer.invoke('connection:check'),
+  sendTestStatus: (status) => ipcRenderer.invoke('connection:send-test-status', status),
 });

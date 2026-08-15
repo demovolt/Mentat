@@ -377,7 +377,6 @@ function setupPowerShellWrapper() {
   }
 }
 
-<<<<<<< Updated upstream
 // ── Codex wrappers & hooks ────────────────────────────────────────────────────
 
 const BASH_CODEX_WRAP_CONTENT = [
@@ -426,42 +425,12 @@ function setupUnixCodexWrapper() {
 }
 
 function setupWslCodexWrapper() {
-=======
-// Shell script that Claude's Stop hook runs — reads session_id from stdin and POSTs to /session
-const SESSION_HOOK_SCRIPT = [
-  '#!/bin/bash',
-  'data=$(cat)',
-  'session_id=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get(\'session_id\',\'\'))" 2>/dev/null)',
-  'term_id="$MENTAT_TERM_ID"',
-  '_h="${MENTAT_STATUS_HOST:-127.0.0.1}"',
-  '[ -n "$session_id" ] && [ -n "$term_id" ] && \\',
-  '  curl -s -o /dev/null -m 2 -X POST "http://$_h:27182/session" \\',
-  '    -H \'Content-Type: application/json\' \\',
-  '    -d "{\\"termId\\":\\"$term_id\\",\\"sessionId\\":\\"$session_id\\"}" 2>/dev/null || true',
-].join('\n');
-function setupUnixSessionHook() {
-  if (process.platform === 'win32') return;
-  const homeDir = process.env.HOME;
-  if (!homeDir) return;
-  const claudeDir = path.join(homeDir, '.claude');
-  const scriptPath = path.join(claudeDir, 'mentat-session-hook.sh');
-  try {
-    fs.mkdirSync(claudeDir, { recursive: true });
-    fs.writeFileSync(scriptPath, SESSION_HOOK_SCRIPT, { encoding: 'utf8', mode: 0o755 });
-  } catch (e) {
-    console.error('[mentat] setupUnixSessionHook failed:', e.message);
-  }
-}
-
-function setupWslSessionHook() {
->>>>>>> Stashed changes
   if (process.platform !== 'win32') return;
   try {
     const raw = execFileSync('wsl.exe', ['-l', '-q'], { encoding: 'utf16le', timeout: 4000 });
     const distro = raw.split('\n').map(l => l.replace(/\0/g, '').trim()).find(l => l);
     if (!distro) return;
 
-<<<<<<< Updated upstream
     const b64 = Buffer.from(BASH_CODEX_WRAP_CONTENT, 'utf8').toString('base64');
     const bashCmd = [
       `mkdir -p ~/.codex`,
@@ -529,7 +498,7 @@ function setupPowerShellCodexWrapper() {
   }
 }
 
-const CODEX_HOOK_MARKER = '"_mentat": true';
+const CODEX_HOOK_MARKER = '"description": "mentat"';
 
 function setupUnixCodexHooks() {
   if (process.platform === 'win32') return;
@@ -556,9 +525,9 @@ function setupUnixCodexHooks() {
     let existing = {};
     try { existing = JSON.parse(fs.readFileSync(hooksPath, 'utf8')); } catch {}
 
-    if (!existing._mentat) {
+    if (existing.description !== 'mentat') {
       const hooks = {
-        _mentat: true,
+        description: 'mentat',
         hooks: {
           PreToolUse: [{ hooks: [{ type: 'command', command: `bash ~/.codex/mentat-hook.sh working` }] }],
           Stop: [{ hooks: [{ type: 'command', command: `bash ~/.codex/mentat-hook.sh idle` }] }],
@@ -590,7 +559,7 @@ function setupWslCodexHooks() {
     const b64Hook = Buffer.from(hookContent, 'utf8').toString('base64');
 
     const hooksJson = JSON.stringify({
-      _mentat: true,
+      description: 'mentat',
       hooks: {
         PreToolUse: [{ hooks: [{ type: 'command', command: 'bash ~/.codex/mentat-hook.sh working' }] }],
         Stop: [{ hooks: [{ type: 'command', command: 'bash ~/.codex/mentat-hook.sh idle' }] }],
@@ -602,7 +571,7 @@ function setupWslCodexHooks() {
       `mkdir -p ~/.codex`,
       `echo '${b64Hook}' | base64 -d > ~/.codex/mentat-hook.sh`,
       `chmod +x ~/.codex/mentat-hook.sh`,
-      `grep -q '_mentat' ~/.codex/hooks.json 2>/dev/null || echo '${b64Hooks}' | base64 -d > ~/.codex/hooks.json`,
+      `grep -q '"description": "mentat"' ~/.codex/hooks.json 2>/dev/null || echo '${b64Hooks}' | base64 -d > ~/.codex/hooks.json`,
     ].join(' && ');
 
     execFileSync('wsl.exe', ['-d', distro, '--', 'bash', '-c', bashCmd], { timeout: 10000 });
@@ -627,12 +596,12 @@ function setupWindowsCodexHooks() {
     let existing = {};
     try { existing = JSON.parse(fs.readFileSync(hooksPath, 'utf8')); } catch {}
 
-    if (!existing._mentat) {
+    if (existing.description !== 'mentat') {
       const mkHook = (status) => ({
         hooks: [{ type: 'command', command: `powershell.exe -NoProfile -NonInteractive -File "${scriptPath}" ${status}` }],
       });
       const hooks = {
-        _mentat: true,
+        description: 'mentat',
         hooks: {
           ...(existing.hooks || {}),
           PreToolUse: [mkHook('working')],
@@ -643,7 +612,43 @@ function setupWindowsCodexHooks() {
     }
   } catch (e) {
     console.error('[mentat] setupWindowsCodexHooks failed:', e.message);
-=======
+  }
+}
+
+// Shell script that Claude's Stop hook runs — reads session_id from stdin and POSTs to /session
+const SESSION_HOOK_SCRIPT = [
+  '#!/bin/bash',
+  'data=$(cat)',
+  'session_id=$(echo "$data" | python3 -c "import sys,json; print(json.load(sys.stdin).get(\'session_id\',\'\'))" 2>/dev/null)',
+  'term_id="$MENTAT_TERM_ID"',
+  '_h="${MENTAT_STATUS_HOST:-127.0.0.1}"',
+  '[ -n "$session_id" ] && [ -n "$term_id" ] && \\',
+  '  curl -s -o /dev/null -m 2 -X POST "http://$_h:27182/session" \\',
+  '    -H \'Content-Type: application/json\' \\',
+  '    -d "{\\"termId\\":\\"$term_id\\",\\"sessionId\\":\\"$session_id\\"}" 2>/dev/null || true',
+].join('\n');
+
+function setupUnixSessionHook() {
+  if (process.platform === 'win32') return;
+  const homeDir = process.env.HOME;
+  if (!homeDir) return;
+  const claudeDir = path.join(homeDir, '.claude');
+  const scriptPath = path.join(claudeDir, 'mentat-session-hook.sh');
+  try {
+    fs.mkdirSync(claudeDir, { recursive: true });
+    fs.writeFileSync(scriptPath, SESSION_HOOK_SCRIPT, { encoding: 'utf8', mode: 0o755 });
+  } catch (e) {
+    console.error('[mentat] setupUnixSessionHook failed:', e.message);
+  }
+}
+
+function setupWslSessionHook() {
+  if (process.platform !== 'win32') return;
+  try {
+    const raw = execFileSync('wsl.exe', ['-l', '-q'], { encoding: 'utf16le', timeout: 4000 });
+    const distro = raw.split('\n').map(l => l.replace(/\0/g, '').trim()).find(l => l);
+    if (!distro) return;
+
     const b64Script = Buffer.from(SESSION_HOOK_SCRIPT, 'utf8').toString('base64');
 
     const bashCmd = [
@@ -654,7 +659,6 @@ function setupWindowsCodexHooks() {
     execFileSync('wsl.exe', ['-d', distro, '--', 'bash', '-c', bashCmd], { timeout: 10000 });
   } catch (e) {
     console.error('[mentat] setupWslSessionHook failed:', e.message);
->>>>>>> Stashed changes
   }
 }
 
@@ -703,26 +707,30 @@ app.whenReady().then(() => {
   setupUnixClaudeWrapper();
   setupWslClaudeWrapper();
   setupPowerShellWrapper();
-<<<<<<< Updated upstream
   setupUnixCodexWrapper();
   setupWslCodexWrapper();
   setupPowerShellCodexWrapper();
   setupUnixCodexHooks();
   setupWslCodexHooks();
   setupWindowsCodexHooks();
-=======
   setupUnixSessionHook();
   setupWslSessionHook();
->>>>>>> Stashed changes
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
-app.on('window-all-closed', () => {
-  log('INFO', 'All windows closed');
+app.on('before-quit', () => {
+  for (const [termId, proc] of ptyProcesses) {
+    try { proc.kill(); } catch {}
+    ptyProcesses.delete(termId);
+  }
   statusServer?.close();
   if (logStream) { logStream.end(); logStream = null; }
+});
+
+app.on('window-all-closed', () => {
+  log('INFO', 'All windows closed');
   if (process.platform !== 'darwin') app.quit();
 });
 
@@ -970,6 +978,85 @@ ipcMain.handle('git:commit', (_e, dirPath, message) => {
 ipcMain.handle('git:push', (_e, dirPath, branch) => {
   try { return { success: true, output: gitRun(dirPath, ['push', '-u', 'origin', branch]) }; }
   catch (e) { return { success: false, error: e.stderr || e.message }; }
+});
+
+// ── Connection IPC ────────────────────────────────────────────────────────────
+
+ipcMain.handle('connection:check', async () => {
+  const isWin = process.platform === 'win32';
+  const results = [];
+
+  if (isWin) {
+    const base = process.env.USERPROFILE || '';
+    const winScripts = [
+      { id: 'win-hook',        label: 'Status hook',    group: 'Windows (.claude)', file: path.join(base, '.claude', 'mentat-hook.ps1') },
+      { id: 'win-claude-wrap', label: 'Claude wrapper', group: 'Windows (.claude)', file: path.join(base, '.claude', 'mentat-claude-wrap.ps1') },
+      { id: 'win-codex-wrap',  label: 'Codex wrapper',  group: 'Windows (.codex)',  file: path.join(base, '.codex', 'mentat-codex-wrap.ps1') },
+    ];
+    for (const s of winScripts) results.push({ ...s, exists: fs.existsSync(s.file) });
+
+    const wslEntries = [
+      { id: 'wsl-claude-hook',    label: 'Status hook',    group: 'WSL (.claude)', wslPath: '~/.claude/mentat-hook.sh' },
+      { id: 'wsl-claude-session', label: 'Session hook',   group: 'WSL (.claude)', wslPath: '~/.claude/mentat-session-hook.sh' },
+      { id: 'wsl-claude-wrap',    label: 'Claude wrapper', group: 'WSL (.claude)', wslPath: '~/.claude/mentat-claude-wrap.sh' },
+      { id: 'wsl-codex-hook',     label: 'Status hook',    group: 'WSL (.codex)',  wslPath: '~/.codex/mentat-hook.sh' },
+      { id: 'wsl-codex-wrap',     label: 'Codex wrapper',  group: 'WSL (.codex)',  wslPath: '~/.codex/mentat-codex-wrap.sh' },
+    ];
+    try {
+      const cmd = wslEntries.map(s => `[ -f ${s.wslPath} ] && echo 1 || echo 0`).join(';');
+      const out = execFileSync('wsl.exe', ['--', 'bash', '-c', cmd], { encoding: 'utf8', timeout: 5000 });
+      const lines = out.trim().split('\n').map(l => l.trim());
+      wslEntries.forEach((s, i) => results.push({ ...s, exists: lines[i] === '1' }));
+    } catch {
+      wslEntries.forEach(s => results.push({ ...s, exists: false }));
+    }
+  } else {
+    const home = process.env.HOME || '';
+    const scripts = [
+      { id: 'claude-hook',    label: 'Status hook',    group: 'Claude', file: path.join(home, '.claude', 'mentat-hook.sh') },
+      { id: 'claude-session', label: 'Session hook',   group: 'Claude', file: path.join(home, '.claude', 'mentat-session-hook.sh') },
+      { id: 'claude-wrap',    label: 'Claude wrapper', group: 'Claude', file: path.join(home, '.claude', 'mentat-claude-wrap.sh') },
+      { id: 'codex-hook',     label: 'Status hook',    group: 'Codex',  file: path.join(home, '.codex', 'mentat-hook.sh') },
+      { id: 'codex-wrap',     label: 'Codex wrapper',  group: 'Codex',  file: path.join(home, '.codex', 'mentat-codex-wrap.sh') },
+    ];
+    for (const s of scripts) results.push({ ...s, exists: fs.existsSync(s.file) });
+  }
+
+  let serverRunning = false;
+  try {
+    await new Promise((resolve) => {
+      const body = JSON.stringify({ termId: '__check__', status: 'idle' });
+      const req = http.request(
+        { host: '127.0.0.1', port: 27182, path: '/status', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+        (res) => { res.resume(); serverRunning = res.statusCode < 500; resolve(); }
+      );
+      req.setTimeout(1500, () => { req.destroy(); resolve(); });
+      req.on('error', () => resolve());
+      req.end(body);
+    });
+  } catch {}
+
+  return { scripts: results, serverRunning };
+});
+
+ipcMain.handle('connection:send-test-status', async (_e, status) => {
+  try {
+    const code = await new Promise((resolve, reject) => {
+      const body = JSON.stringify({ termId: '__mentat_test__', status });
+      const req = http.request(
+        { host: '127.0.0.1', port: 27182, path: '/status', method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(body) } },
+        (res) => { res.resume(); resolve(res.statusCode); }
+      );
+      req.setTimeout(2000, () => { req.destroy(); reject(new Error('timeout')); });
+      req.on('error', reject);
+      req.end(body);
+    });
+    return { ok: code < 300 };
+  } catch (e) {
+    return { ok: false, error: e.message };
+  }
 });
 
 // ── PTY IPC ───────────────────────────────────────────────────────────────────

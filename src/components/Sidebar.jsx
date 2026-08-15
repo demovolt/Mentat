@@ -26,7 +26,7 @@ export default function Sidebar({
 
   return (
     <div className="w-56 shrink-0 flex flex-col bg-[#111] border-r border-[#1c1c1c]">
-      <div className="flex-1 overflow-y-auto py-2">
+      <div className="flex-1 overflow-y-auto pt-1 pb-2">
         {workspace.length === 0 ? (
           <p className="text-[12px] text-[#333] text-center mt-10 px-4 leading-relaxed">
             Add a repository<br />to get started
@@ -88,7 +88,6 @@ function RepoSection({
         onMouseLeave={() => setHovered(false)}
         onClick={onToggle}
       >
-        <div className="shrink-0 w-0.5 h-3.5 rounded-full" style={{ backgroundColor: color }} />
         <ChevronIcon collapsed={collapsed} />
         <span
           className="text-[14px] text-white font-semibold truncate flex-1"
@@ -360,23 +359,23 @@ function TerminalIndicator() {
         <polyline points="2 4 6 6 2 8" />
         <line x1="7" y1="8" x2="11" y2="8" />
       </svg>
-      <span className="text-[12px] leading-none text-[#444]">Terminal</span>
+      <span className="text-[12px] leading-none text-[#444]">Term</span>
     </span>
   );
 }
 
 function StatusDot({ status }) {
   const styles = {
-    working:  { dot: 'bg-green-500',  text: 'text-green-500',  label: 'Working' },
-    thinking: { dot: 'bg-blue-500',   text: 'text-blue-500',   label: 'Thinking' },
-    waiting:  { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'Waiting' },
+    working:  { dot: 'bg-green-500',  text: 'text-green-500',  label: 'Work' },
+    thinking: { dot: 'bg-blue-500',   text: 'text-blue-500',   label: 'Think' },
+    waiting:  { dot: 'bg-yellow-400', text: 'text-yellow-400', label: 'Wait' },
   };
   const s = styles[status];
   return (
     <span className="flex items-center gap-1">
       <span className={`shrink-0 w-1.5 h-1.5 rounded-full ${s ? s.dot : 'bg-[#444]'}`} />
       <span className={`text-[12px] leading-none ${s ? s.text : 'text-[#444]'}`}>
-        {s ? s.label : 'Idle'}
+        {s ? s.label : 'Idle'  }
       </span>
     </span>
   );

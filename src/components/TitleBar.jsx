@@ -1,7 +1,7 @@
 export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune, isPruning, onAddRepo, onSettings }) {
   return (
     <div
-      className="flex items-center justify-between h-9 px-3 shrink-0 bg-[#0a0a0a] border-b border-[#1c1c1c]"
+      className="flex items-center justify-between h-8 px-3 shrink-0 bg-[#0a0a0a] border-b border-[#1c1c1c]"
       style={{ WebkitAppRegion: 'drag' }}
     >
       <div className="flex items-center gap-3">
@@ -96,7 +96,7 @@ function WinBtn({ onClick, title, danger, children }) {
     <button
       onClick={onClick}
       title={title}
-      className={`w-7 h-7 rounded flex items-center justify-center transition-colors ${
+      className={`w-[23px] h-[23px] rounded flex items-center justify-center transition-colors ${
         danger
           ? 'text-[#555] hover:text-[#ef4444] hover:bg-[#2a1414]'
           : 'text-[#555] hover:text-[#aaa] hover:bg-[#1e1e1e]'

@@ -41,6 +41,7 @@ export default function App() {
   const [pruneRepoPath, setPruneRepoPath] = useState(null);
   const [isPruning, setIsPruning] = useState(false);
   const [error, setError] = useState(null);
+  const errorTimerRef = useRef(null);
   const [terminalStatuses, setTerminalStatuses] = useState({});
   const [terminalSessionActive, setTerminalSessionActive] = useState({});
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
@@ -48,6 +49,12 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const aiCommand = settings.ai === 'codex' ? 'codex' : 'claude';
+
+  const showError = useCallback((msg) => {
+    setError(msg);
+    clearTimeout(errorTimerRef.current);
+    errorTimerRef.current = setTimeout(() => setError(null), 5000);
+  }, []);
 
   const stateLoaded = useRef(false);
 
@@ -221,7 +228,7 @@ export default function App() {
     const folder = await window.api.openFolder();
     if (!folder) return;
     const root = await window.api.detectRepo(folder);
-    if (!root) { setError('Git-репозиторий не найден.'); return; }
+    if (!root) { showError('Git-репозиторий не найден.'); return; }
     if (workspace.some(r => r.path === root)) return;
     setWorkspace(prev => [...prev, { path: root }]);
     window.api.gitCurrentBranch(root).then(b => {
@@ -255,12 +262,12 @@ export default function App() {
     const baseBranch = mainBranchMap[newWorktreeRepo] || 'master';
     const result = await window.api.createWorktree({ repoPath: newWorktreeRepo, branch, baseBranch });
     if (result.success) { setShowModal(false); loadWorktrees(newWorktreeRepo); }
-    else setError(result.error);
+    else showError(result.error);
   };
 
   const handleRemoveWorktree = async (worktreePath, repoPath) => {
     const result = await window.api.removeWorktree({ repoPath, worktreePath });
-    if (!result.success) { setError(result.error); return; }
+    if (!result.success) { showError(result.error); return; }
     setTerminals(prev => prev.filter(t => t.worktreePath !== worktreePath));
     if (activeWorktreePath === worktreePath) {
       setActiveWorktreePath(null);
@@ -273,14 +280,14 @@ export default function App() {
     const wt = (worktreesMap[repoPath] || []).find(w => w.path === worktreePath);
     if (!wt?.branch) return;
     const result = await window.api.deleteBranch({ repoPath, branch: wt.branch });
-    if (!result.success) setError(result.error);
+    if (!result.success) showError(result.error);
     else loadWorktrees(repoPath);
   };
 
   const handleRemoveBoth = async (worktreePath, repoPath) => {
     const wt = (worktreesMap[repoPath] || []).find(w => w.path === worktreePath);
     const rmResult = await window.api.removeWorktree({ repoPath, worktreePath });
-    if (!rmResult.success) { setError(rmResult.error); return; }
+    if (!rmResult.success) { showError(rmResult.error); return; }
     setTerminals(prev => prev.filter(t => t.worktreePath !== worktreePath));
     if (activeWorktreePath === worktreePath) {
       setActiveWorktreePath(null);
@@ -288,7 +295,7 @@ export default function App() {
     }
     if (wt?.branch) {
       const delResult = await window.api.deleteBranch({ repoPath, branch: wt.branch });
-      if (!delResult.success) setError(delResult.error);
+      if (!delResult.success) showError(delResult.error);
     }
     loadWorktrees(repoPath);
   };
@@ -306,13 +313,13 @@ export default function App() {
     setIsPruning(true);
     try {
       const result = await window.api.getPrunableWorktrees(activeRepoPath);
-      if (!result.success) { setError(result.error); return; }
-      if (result.worktrees.length === 0) { setError('Нет смёрженных веток для удаления'); return; }
+      if (!result.success) { showError(result.error); return; }
+      if (result.worktrees.length === 0) { showError('Нет смёрженных веток для удаления'); return; }
       setPrunableWorktrees(result.worktrees);
       setPruneRepoPath(activeRepoPath);
       setShowPruneModal(true);
     } catch (e) {
-      setError(e.message);
+      showError(e.message);
     } finally {
       setIsPruning(false);
     }
@@ -338,7 +345,7 @@ export default function App() {
     setPrunableWorktrees([]);
     if (pruneRepoPath) loadWorktrees(pruneRepoPath);
     setPruneRepoPath(null);
-    if (errors.length > 0) setError(errors.join('\n'));
+    if (errors.length > 0) showError(errors.join('\n'));
   };
 
   // ── Render ────────────────────────────────────────────────────────────────
@@ -393,6 +400,8 @@ export default function App() {
               onNew={(shellId) => addTerminal(activeWorktreePath, shellId)}
               onNewAi={() => addAiTerminal(activeWorktreePath)}
               shellProfiles={shellProfiles}
+              terminalStatuses={terminalStatuses}
+              terminalSessionActive={terminalSessionActive}
             />
           )}
 
