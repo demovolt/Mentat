@@ -45,7 +45,8 @@ export default function App() {
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
-  const [aiCommand, setAiCommand] = useState('claude');
+
+  const aiCommand = settings.ai === 'codex' ? 'codex' : 'claude';
 
   const stateLoaded = useRef(false);
 
@@ -57,7 +58,6 @@ export default function App() {
   useEffect(() => {
     (async () => {
       const cfg = await window.api.getConfig();
-      if (cfg.aiCommand) setAiCommand(cfg.aiCommand);
       const ws = cfg.workspace || [];
       if (cfg.settings) {
         setSettings((prev) => ({
