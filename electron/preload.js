@@ -47,6 +47,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.on('worktree:status-changed', handler);
     return () => ipcRenderer.removeListener('worktree:status-changed', handler);
   },
+  onWorktreeAgent: (cb) => {
+    const handler = (_e, payload) => cb(payload);
+    ipcRenderer.on('worktree:agent-changed', handler);
+    return () => ipcRenderer.removeListener('worktree:agent-changed', handler);
+  },
   onTerminalExited: (cb) => {
     const handler = (_e, payload) => cb(payload);
     ipcRenderer.on('pty:exited', handler);

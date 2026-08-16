@@ -6,12 +6,10 @@ import { makeApiMock } from './mocks/window-api.js';
 global.requestAnimationFrame = (cb) => { cb(0); return 0; };
 global.cancelAnimationFrame = vi.fn();
 
-// ResizeObserver stub
-global.ResizeObserver = vi.fn(() => ({
-  observe: vi.fn(),
-  unobserve: vi.fn(),
-  disconnect: vi.fn(),
-}));
+// ResizeObserver stub — must use a regular function (not arrow) so `new` works
+global.ResizeObserver = vi.fn(function() {
+  return { observe: vi.fn(), unobserve: vi.fn(), disconnect: vi.fn() };
+});
 
 // window.open stub
 global.open = vi.fn();

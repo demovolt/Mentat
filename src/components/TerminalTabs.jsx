@@ -8,6 +8,7 @@ const STATUS_DOT = {
 };
 
 export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew, onNewAi, shellProfiles = [], terminalStatuses = {}, terminalSessionActive = {} }) {
+  const atLimit = tabs.length >= 3;
   const [menuPos, setMenuPos] = useState(null);
   const chevronRef = useRef(null);
 
@@ -69,9 +70,10 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
         {onNewAi && (
           <div className="flex items-center border-l border-[#1c1c1c]">
             <button
-              onClick={onNewAi}
+              onClick={atLimit ? undefined : onNewAi}
+              disabled={atLimit}
               title="New AI tab"
-              className="px-2 h-8 text-[11px] text-[#555] hover:text-[#a78bfa] transition-colors font-medium"
+              className={`px-2 h-8 text-[11px] transition-colors font-medium ${atLimit ? 'text-[#2a2a2a] cursor-default' : 'text-[#555] hover:text-[#a78bfa]'}`}
             >
               + AI
             </button>
@@ -89,13 +91,14 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
         {/* + Term split button */}
         <div className="flex items-center border-l border-[#1c1c1c]">
           <button
-            onClick={() => onNew()}
+            onClick={atLimit ? undefined : () => onNew()}
+            disabled={atLimit}
             title="New terminal"
-            className="px-2 h-8 text-[11px] text-[#555] hover:text-[#aaa] transition-colors font-medium"
+            className={`px-2 h-8 text-[11px] transition-colors font-medium ${atLimit ? 'text-[#2a2a2a] cursor-default' : 'text-[#555] hover:text-[#aaa]'}`}
           >
             + Term
           </button>
-          {shellProfiles.length > 1 ? (
+          {shellProfiles.length > 1 && !atLimit ? (
             <button
               ref={chevronRef}
               onClick={toggleMenu}

@@ -161,7 +161,7 @@ describe('gitRun', () => {
     execFileSyncSpy.mockReturnValue('main\n');
     const result = gitRun('/home/user/repo', ['rev-parse', '--abbrev-ref', 'HEAD']);
     expect(execFileSyncSpy).toHaveBeenCalledWith('git', ['rev-parse', '--abbrev-ref', 'HEAD'], {
-      cwd: '/home/user/repo', encoding: 'utf8',
+      cwd: '/home/user/repo', encoding: 'utf8', timeout: 10_000,
     });
     expect(result).toBe('main');
   });
@@ -173,7 +173,7 @@ describe('gitRun', () => {
     expect(execFileSyncSpy).toHaveBeenCalledWith(
       'wsl.exe',
       ['-d', 'Ubuntu', '--cd', '/home/user/repo', 'git', 'branch'],
-      { encoding: 'utf8' }
+      { encoding: 'utf8', timeout: 10_000 }
     );
   });
 

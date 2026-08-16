@@ -7,8 +7,10 @@
  *   spies set here affect any code that calls require('fs') or require('child_process').
  * - For electron, http, node-pty: inject mocks directly into require.cache so that
  *   main.js's require() calls return our mocks.
- * - Load helpers.js eagerly via CJS _require so it gets our spy references, then
- *   keep it in require.cache to prevent Vitest from re-loading it.
+ * - All of main.js's CJS dependencies are eagerly loaded BEFORE vi.spyOn replaces
+ *   fs.readFileSync, because Node's CJS loader uses the public fs.readFileSync to
+ *   read module files. Pre-loading puts them in require.cache so main.js's require()
+ *   calls hit the cache instead of re-reading through the mock.
  */
 import { createRequire } from 'module';
 import { vi } from 'vitest';
@@ -75,7 +77,37 @@ export function setupMainMocks() {
   };
   const ptyMock = { spawn: vi.fn(() => mockPtyProcess) };
 
-  // Set up spies on built-in module singletons
+  // Inject non-built-in mocks FIRST so that eager module loading below sees them
+  injectCache('electron', electronMock);
+  injectCache('http', httpMock);
+  injectCache('node-pty', ptyMock);
+
+  // Eagerly load ALL of main.js's CJS dependencies BEFORE vi.spyOn replaces
+  // fs.readFileSync. Node's CJS loader calls the public fs.readFileSync to read
+  // module source files; if the spy is in place first, every required file gets
+  // '{}' as its content and exports nothing (log, loadConfig, etc. = undefined).
+  // Pre-loading puts them in require.cache so main.js's require() calls hit the
+  // cache without re-reading through the mock. Order matters: satisfy deps first.
+  for (const relPath of [
+    '../../../electron/helpers.js',
+    '../../../electron/terminal-state.js',
+    '../../../electron/logger.js',
+    '../../../electron/config.js',
+    '../../../electron/status-server.js',
+    '../../../electron/wrappers.js',
+    '../../../electron/codex-hooks.js',
+    '../../../electron/shell-profiles.js',
+    '../../../electron/ipc/git.js',
+    '../../../electron/ipc/pty.js',
+  ]) {
+    const p = _require.resolve(relPath);
+    delete _require.cache[p];
+    _require(p);
+  }
+
+  // Set up spies on built-in module singletons AFTER modules are loaded.
+  // Modules hold references to the _fsModule/_cpModule singletons, so future
+  // calls from those modules will still go through the spies.
   const execFileSyncSpy = vi.spyOn(_cpModule, 'execFileSync').mockReturnValue('');
   const readFileSyncSpy = vi.spyOn(_fsModule, 'readFileSync').mockReturnValue('{}');
   const writeFileSyncSpy = vi.spyOn(_fsModule, 'writeFileSync').mockImplementation(() => {});
@@ -84,17 +116,6 @@ export function setupMainMocks() {
   const existsSyncSpy = vi.spyOn(_fsModule, 'existsSync').mockReturnValue(false);
   const createWriteStreamSpy = vi.spyOn(_fsModule, 'createWriteStream').mockReturnValue(mockStream);
   const rmSyncSpy = vi.spyOn(_fsModule, 'rmSync').mockImplementation(() => {});
-
-  // Eagerly load helpers.js via CJS _require so it captures our spy references
-  // for _cpModule and _fsModule. We keep it in require.cache to prevent re-loading.
-  const helpersPath = _require.resolve('../../../electron/helpers.js');
-  delete _require.cache[helpersPath];
-  _require(helpersPath); // loads helpers.js; its `const cp = require('child_process')` gets _cpModule
-
-  // Inject non-built-in mocks
-  injectCache('electron', electronMock);
-  injectCache('http', httpMock);
-  injectCache('node-pty', ptyMock);
 
   return {
     _handlers,

@@ -35,7 +35,11 @@ describe('GitPipelineModal', () => {
         success: true,
         output: 'M  src/App.jsx\nA  src/new.js',
       });
+      const user = userEvent.setup();
       renderModal();
+      // Files are shown in Stage step; navigate there first
+      await waitFor(() => screen.getByText('Пропустить'));
+      await user.click(screen.getByText('Пропустить'));
       await waitFor(() => {
         expect(screen.getByText('src/App.jsx')).toBeInTheDocument();
         expect(screen.getByText('src/new.js')).toBeInTheDocument();
@@ -47,7 +51,10 @@ describe('GitPipelineModal', () => {
         success: true,
         output: 'M  src/App.jsx\nA  src/new.js',
       });
+      const user = userEvent.setup();
       renderModal();
+      await waitFor(() => screen.getByText('Пропустить'));
+      await user.click(screen.getByText('Пропустить'));
       await waitFor(() => screen.getByText('src/App.jsx'));
       const checkboxes = screen.getAllByRole('checkbox');
       checkboxes.forEach(cb => expect(cb).toBeChecked());
@@ -66,7 +73,8 @@ describe('GitPipelineModal', () => {
     it('renders Pull and Пропустить buttons', async () => {
       renderModal();
       await waitFor(() => {
-        expect(screen.getByText('Pull')).toBeInTheDocument();
+        // 'Pull' appears in both the step indicator label and the button; use role to find the button
+        expect(screen.getByRole('button', { name: /^Pull$/ })).toBeInTheDocument();
         expect(screen.getByText('Пропустить')).toBeInTheDocument();
       });
     });
@@ -75,8 +83,8 @@ describe('GitPipelineModal', () => {
       window.api.gitPull.mockResolvedValue({ success: true, output: 'up to date' });
       const user = userEvent.setup();
       renderModal();
-      await waitFor(() => screen.getByText('Pull'));
-      await user.click(screen.getByText('Pull'));
+      await waitFor(() => screen.getByRole('button', { name: /^Pull$/ }));
+      await user.click(screen.getByRole('button', { name: /^Pull$/ }));
       expect(window.api.gitPull).toHaveBeenCalledWith('/repo', 'main');
     });
 
@@ -84,10 +92,9 @@ describe('GitPipelineModal', () => {
       window.api.gitPull.mockResolvedValue({ success: true, output: 'up to date' });
       const user = userEvent.setup();
       renderModal();
-      await waitFor(() => screen.getByText('Pull'));
-      await user.click(screen.getByText('Pull'));
+      await waitFor(() => screen.getByRole('button', { name: /^Pull$/ }));
+      await user.click(screen.getByRole('button', { name: /^Pull$/ }));
       await waitFor(() => {
-        // Stage step shows "Добавить" or "Выберите файлы"
         expect(screen.getByText(/Выберите файлы/)).toBeInTheDocument();
       });
     });
@@ -96,8 +103,8 @@ describe('GitPipelineModal', () => {
       window.api.gitPull.mockResolvedValue({ success: false, error: 'conflict detected' });
       const user = userEvent.setup();
       renderModal();
-      await waitFor(() => screen.getByText('Pull'));
-      await user.click(screen.getByText('Pull'));
+      await waitFor(() => screen.getByRole('button', { name: /^Pull$/ }));
+      await user.click(screen.getByRole('button', { name: /^Pull$/ }));
       await waitFor(() => {
         expect(screen.getByText('conflict detected')).toBeInTheDocument();
       });
@@ -198,11 +205,10 @@ describe('GitPipelineModal', () => {
   });
 
   describe('Step 2 - Commit', () => {
+    // goToCommit navigates from Pull→Stage→Commit.
+    // gitStatus must be mocked with files BEFORE renderModal so the mount call
+    // populates changedFiles; the second call (after gitAdd) can return empty.
     async function goToCommit(user) {
-      window.api.gitStatus
-        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
-        .mockResolvedValueOnce({ success: true, output: '' });
-      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
       await waitFor(() => screen.getByText('Пропустить'));
       await user.click(screen.getByText('Пропустить'));
       await waitFor(() => screen.getByText(/Добавить \(\d+\)/));
@@ -211,67 +217,84 @@ describe('GitPipelineModal', () => {
     }
 
     it('Commit button disabled on empty message', async () => {
+      window.api.gitStatus
+        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
+        .mockResolvedValueOnce({ success: true, output: '' });
+      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
       const user = userEvent.setup();
       renderModal();
       await goToCommit(user);
-      expect(screen.getByText('Commit').closest('button')).toBeDisabled();
+      expect(screen.getByRole('button', { name: /^Commit$/ }).closest('button')).toBeDisabled();
     });
 
     it('calls gitCommit with trimmed message', async () => {
+      window.api.gitStatus
+        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
+        .mockResolvedValueOnce({ success: true, output: '' });
+      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
       window.api.gitCommit.mockResolvedValue({ success: true, output: '[main abc] msg' });
       const user = userEvent.setup();
       renderModal();
       await goToCommit(user);
       await user.type(screen.getByRole('textbox'), '  fix: some bug  ');
-      await user.click(screen.getByText('Commit'));
+      await user.click(screen.getByRole('button', { name: /^Commit$/ }));
       expect(window.api.gitCommit).toHaveBeenCalledWith('/repo', 'fix: some bug');
     });
 
     it('advances to Push step on successful commit', async () => {
+      window.api.gitStatus
+        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
+        .mockResolvedValueOnce({ success: true, output: '' });
+      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
       window.api.gitCommit.mockResolvedValue({ success: true, output: '[main abc]' });
       const user = userEvent.setup();
       renderModal();
       await goToCommit(user);
       await user.type(screen.getByRole('textbox'), 'fix: bug');
-      await user.click(screen.getByText('Commit'));
+      await user.click(screen.getByRole('button', { name: /^Commit$/ }));
       await waitFor(() => {
-        expect(screen.getByText('Push')).toBeInTheDocument();
+        expect(screen.getByRole('button', { name: /^Push$/ })).toBeInTheDocument();
       });
     });
   });
 
   describe('Step 3 - Push', () => {
     async function goToPush(user) {
-      window.api.gitStatus
-        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
-        .mockResolvedValueOnce({ success: true, output: '' });
-      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
-      window.api.gitCommit.mockResolvedValue({ success: true, output: '[main abc]' });
       await waitFor(() => screen.getByText('Пропустить'));
       await user.click(screen.getByText('Пропустить'));
       await waitFor(() => screen.getByText(/Добавить \(\d+\)/));
       await user.click(screen.getByText(/Добавить \(\d+\)/));
       await waitFor(() => screen.getByRole('textbox'));
       await user.type(screen.getByRole('textbox'), 'feat: test');
-      await user.click(screen.getByText('Commit'));
-      await waitFor(() => screen.getByText('Push'));
+      await user.click(screen.getByRole('button', { name: /^Commit$/ }));
+      await waitFor(() => screen.getByRole('button', { name: /^Push$/ }));
     }
 
     it('calls gitPush when Push is clicked', async () => {
+      window.api.gitStatus
+        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
+        .mockResolvedValueOnce({ success: true, output: '' });
+      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
+      window.api.gitCommit.mockResolvedValue({ success: true, output: '[main abc]' });
       window.api.gitPush.mockResolvedValue({ success: true, output: 'pushed' });
       const user = userEvent.setup();
       renderModal();
       await goToPush(user);
-      await user.click(screen.getByText('Push'));
+      await user.click(screen.getByRole('button', { name: /^Push$/ }));
       expect(window.api.gitPush).toHaveBeenCalledWith('/repo', 'main');
     });
 
     it('shows completion screen after successful push', async () => {
+      window.api.gitStatus
+        .mockResolvedValueOnce({ success: true, output: 'M  file.txt' })
+        .mockResolvedValueOnce({ success: true, output: '' });
+      window.api.gitAdd.mockResolvedValue({ success: true, output: '' });
+      window.api.gitCommit.mockResolvedValue({ success: true, output: '[main abc]' });
       window.api.gitPush.mockResolvedValue({ success: true, output: 'pushed' });
       const user = userEvent.setup();
       renderModal();
       await goToPush(user);
-      await user.click(screen.getByText('Push'));
+      await user.click(screen.getByRole('button', { name: /^Push$/ }));
       await waitFor(() => {
         expect(screen.getByText(/Готово!/)).toBeInTheDocument();
       });

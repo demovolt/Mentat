@@ -1,4 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
+import StepPull from './git/StepPull.jsx';
+import StepStage from './git/StepStage.jsx';
+import StepCommit from './git/StepCommit.jsx';
+import StepPush from './git/StepPush.jsx';
 
 const STEP_LABELS = ['Pull', 'Stage', 'Commit', 'Push'];
 
@@ -15,15 +19,6 @@ function statusColor(st) {
   if (st === 'active')  return 'bg-[#7c3aed]';
   if (st === 'skipped') return 'bg-[#444]';
   return 'bg-[#333]';
-}
-
-function Output({ text, isError }) {
-  if (!text) return null;
-  return (
-    <pre className={`mt-3 p-2 rounded text-[14px] font-mono max-h-24 overflow-y-auto bg-[#0a0a0a] border border-[#1c1c1c] whitespace-pre-wrap break-all ${isError ? 'text-[#f87171]' : 'text-[#888]'}`}>
-      {text}
-    </pre>
-  );
 }
 
 export default function GitPipelineModal({ worktreePath, onClose }) {
@@ -148,13 +143,11 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
         className="w-[500px] bg-[#161616] border border-[#2a2a2a] rounded-xl shadow-2xl p-5 flex flex-col gap-4"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div className="flex items-center justify-between">
           <span className="text-[14px] font-semibold text-[#ccc]">Git Pipeline</span>
           <span className="text-[14px] text-[#555]">{branch}</span>
         </div>
 
-        {/* Step indicator */}
         <div className="flex items-center gap-0">
           {STEP_LABELS.map((label, i) => (
             <div key={i} className="flex items-center flex-1 last:flex-none">
@@ -171,7 +164,6 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
           ))}
         </div>
 
-        {/* Step body */}
         <div className="min-h-[120px]">
           {done ? (
             <div className="flex flex-col items-center justify-center gap-3 py-6">
@@ -234,122 +226,5 @@ export default function GitPipelineModal({ worktreePath, onClose }) {
         </div>
       </div>
     </div>
-  );
-}
-
-function StepPull({ branch, running, output, error, isError, onPull, onSkip }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[14px] text-[#888]">
-        Синхронизировать с удалённым репозиторием:&nbsp;
-        <span className="text-[#a78bfa]">origin/{branch}</span>
-      </p>
-      <code className="text-[13px] font-mono text-[#555]">git pull origin {branch}</code>
-      <div className="flex gap-2">
-        <ActionBtn onClick={onPull} disabled={running} primary>
-          {running ? 'Pulling…' : 'Pull'}
-        </ActionBtn>
-        <ActionBtn onClick={onSkip} disabled={running}>
-          Пропустить
-        </ActionBtn>
-      </div>
-      <Output text={error || output} isError={isError} />
-    </div>
-  );
-}
-
-function StepStage({ files, selected, running, output, error, isError, onToggle, onSelectAll, onDeselectAll, onStage }) {
-  return (
-    <div className="flex flex-col gap-2">
-      <div className="flex items-center justify-between">
-        <p className="text-[14px] text-[#888]">Выберите файлы для стейджинга:</p>
-        <div className="flex gap-3">
-          <button onClick={onSelectAll} className="text-[12px] text-[#555] hover:text-[#a78bfa] transition-colors">все</button>
-          <button onClick={onDeselectAll} className="text-[12px] text-[#555] hover:text-[#a78bfa] transition-colors">снять</button>
-        </div>
-      </div>
-      {files.length === 0 ? (
-        <p className="text-[12px] text-[#444] italic">Нет изменённых файлов</p>
-      ) : (
-        <div className="max-h-32 overflow-y-auto flex flex-col gap-0.5 border border-[#1c1c1c] rounded-lg p-2 bg-[#0f0f0f]">
-          {files.map((f) => (
-            <label key={f.file} className="flex items-center gap-2 cursor-pointer group py-0.5">
-              <input
-                type="checkbox"
-                checked={selected.includes(f.file)}
-                onChange={() => onToggle(f.file)}
-                className="accent-[#7c3aed] w-3 h-3"
-              />
-              <span className="text-[12px] font-mono text-[#666] w-6 shrink-0">{f.xy.trim()}</span>
-              <span className="text-[12px] text-[#999] group-hover:text-[#ccc] truncate transition-colors">{f.file}</span>
-            </label>
-          ))}
-        </div>
-      )}
-      <ActionBtn
-        onClick={onStage}
-        disabled={running || selected.length === 0}
-        primary
-      >
-        {running ? 'Добавляю…' : `Добавить (${selected.length})`}
-      </ActionBtn>
-      <Output text={error || output} isError={isError} />
-    </div>
-  );
-}
-
-function StepCommit({ commitMsg, commitRef, running, output, error, isError, onChange, onCommit }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[14px] text-[#888]">Сообщение коммита:</p>
-      <textarea
-        ref={commitRef}
-        value={commitMsg}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder="feat: добавить новую функцию"
-        rows={3}
-        className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-[14px] text-white placeholder-[#444] focus:outline-none focus:border-[#7c3aed] resize-none font-mono"
-      />
-      <ActionBtn
-        onClick={onCommit}
-        disabled={running || !commitMsg.trim()}
-        primary
-      >
-        {running ? 'Коммичу…' : 'Commit'}
-      </ActionBtn>
-      <Output text={error || output} isError={isError} />
-    </div>
-  );
-}
-
-function StepPush({ branch, running, output, error, isError, onPush }) {
-  return (
-    <div className="flex flex-col gap-3">
-      <p className="text-[14px] text-[#888]">
-        Отправить изменения в&nbsp;
-        <span className="text-[#a78bfa]">origin/{branch}</span>
-      </p>
-      <code className="text-[13px] font-mono text-[#555]">git push -u origin {branch}</code>
-      <ActionBtn onClick={onPush} disabled={running} primary>
-        {running ? 'Pushing…' : 'Push'}
-      </ActionBtn>
-      <Output text={error || output} isError={isError} />
-    </div>
-  );
-}
-
-function ActionBtn({ onClick, disabled, primary, children }) {
-  return (
-    <button
-      onClick={onClick}
-      disabled={disabled}
-      className={`px-4 py-1.5 rounded-lg text-[14px] transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
-        primary
-          ? 'bg-[#7c3aed] hover:bg-[#6d28d9] text-white'
-          : 'border border-[#2a2a2a] text-[#888] hover:text-[#ccc] hover:border-[#444]'
-      }`}
-    >
-      {children}
-    </button>
   );
 }

@@ -83,7 +83,7 @@ describe('Terminal component', () => {
       />
     );
     const outerDiv = container.firstChild;
-    expect(outerDiv.style.display).toBe('none');
+    expect(outerDiv.style.visibility).toBe('hidden');
   });
 
   it('renders visible div when active=true', () => {
@@ -102,7 +102,7 @@ describe('Terminal component', () => {
       />
     );
     const outerDiv = container.firstChild;
-    expect(outerDiv.style.display).toBe('block');
+    expect(outerDiv.style.visibility).toBe('visible');
   });
 
   it('registers PTY data listener on mount', () => {

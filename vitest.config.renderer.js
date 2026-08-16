@@ -14,6 +14,7 @@ export default defineConfig({
   },
   resolve: {
     alias: {
+      '@xterm/xterm/css/xterm.css': resolve('./tests/mocks/empty.js'),
       '@xterm/xterm': resolve('./tests/mocks/xterm.js'),
       '@xterm/addon-fit': resolve('./tests/mocks/xterm-addons.js'),
       '@xterm/addon-webgl': resolve('./tests/mocks/xterm-addons.js'),

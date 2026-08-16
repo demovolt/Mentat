@@ -34,6 +34,7 @@ export function makeApiMock() {
     closeTerminal: vi.fn(),
     onTerminalData: vi.fn(() => vi.fn()),
     onWorktreeStatus: vi.fn(() => vi.fn()),
+    onWorktreeAgent: vi.fn(() => vi.fn()),
     onTerminalExited: vi.fn(() => vi.fn()),
     onSessionIdUpdated: vi.fn(() => vi.fn()),
 
@@ -50,5 +51,9 @@ export function makeApiMock() {
     setLoggingEnabled: vi.fn().mockResolvedValue(undefined),
     getLogPath: vi.fn().mockResolvedValue('/tmp/mentat.log'),
     logError: vi.fn(),
+
+    // Connection
+    checkConnection: vi.fn().mockResolvedValue({ scripts: [], serverRunning: false }),
+    sendTestStatus: vi.fn().mockResolvedValue({ ok: true }),
   };
 }

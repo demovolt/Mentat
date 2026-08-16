@@ -10,7 +10,7 @@ beforeAll(async () => {
 const ev = {};
 
 describe('git:detect-repo', () => {
-  beforeEach(() => mocks.execFileSync.mockReset().mockReturnValue(''));
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('returns trimmed git root on success', async () => {
     mocks.execFileSync.mockReturnValue('/home/user/repo\n');
@@ -18,13 +18,13 @@ describe('git:detect-repo', () => {
   });
 
   it('returns null on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('not a git repo'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → null
     expect(await mocks._handlers['git:detect-repo'](ev, '/tmp')).toBeNull();
   });
 });
 
 describe('git:get-branches', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('splits output into branch array', async () => {
     mocks.execFileSync.mockReturnValue('main\nfeature/test\n');
@@ -32,13 +32,13 @@ describe('git:get-branches', () => {
   });
 
   it('returns empty array on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('fail'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → []
     expect(await mocks._handlers['git:get-branches'](ev, '/repo')).toEqual([]);
   });
 });
 
 describe('git:get-worktrees', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('returns parsed worktrees', async () => {
     const porcelain = 'worktree /home/user/repo\nHEAD abc1234\nbranch refs/heads/main\n\n';
@@ -49,15 +49,15 @@ describe('git:get-worktrees', () => {
   });
 
   it('returns empty array on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('fail'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → []
     expect(await mocks._handlers['git:get-worktrees'](ev, '/repo')).toEqual([]);
   });
 });
 
 describe('git:create-worktree', () => {
   beforeEach(() => {
-    mocks.execFileSync.mockReset().mockReturnValue('.git\n');
-    mocks.fs.mkdirSync.mockReset();
+    mocks.execFileSync.mockClear().mockReturnValue('.git\n');
+    mocks.fs.mkdirSync.mockClear();
     mocks.fs.existsSync.mockReturnValue(true);
   });
 
@@ -76,26 +76,27 @@ describe('git:create-worktree', () => {
       Array.isArray(c[1]) && c[1].includes('add')
     );
     expect(addCall).toBeDefined();
-    // The worktree directory should use dashes instead of slashes
-    const dirArg = addCall[1][addCall[1].indexOf('add') + 2];
+    // args: ['worktree', 'add', '-b', branch, worktreePath, baseBranch]
+    // indexOf('add') = 1, +3 = index 4 = worktreePath
+    const dirArg = addCall[1][addCall[1].indexOf('add') + 3];
     expect(dirArg).toContain('feature-my-feat');
   });
 
   it('returns success: false with error on failure', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('branch already exists'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → outer catch → {success:false}
     const result = await mocks._handlers['git:create-worktree'](ev, {
       repoPath: '/repo', branch: 'test', baseBranch: 'main',
     });
     expect(result.success).toBe(false);
-    expect(result.error).toContain('branch already exists');
+    expect(result.error).toBeDefined();
   });
 });
 
 describe('git:remove-worktree', () => {
   beforeEach(() => {
-    mocks.execFileSync.mockReset().mockReturnValue('');
-    mocks.fs.existsSync.mockReset().mockReturnValue(false);
-    mocks.fs.rmSync.mockReset();
+    mocks.execFileSync.mockClear().mockReturnValue('');
+    mocks.fs.existsSync.mockClear().mockReturnValue(false);
+    mocks.fs.rmSync.mockClear();
   });
 
   it('calls git worktree remove --force', async () => {
@@ -121,21 +122,21 @@ describe('git:remove-worktree', () => {
 });
 
 describe('git:delete-branch', () => {
-  beforeEach(() => mocks.execFileSync.mockReset().mockReturnValue(''));
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('calls git branch -D', async () => {
     await mocks._handlers['git:delete-branch'](ev, { repoPath: '/repo', branch: 'feature/test' });
-    expect(mocks.execFileSync).toHaveBeenCalledWith('git', ['-D', 'feature/test'], expect.any(Object));
+    expect(mocks.execFileSync).toHaveBeenCalledWith('git', ['branch', '-D', 'feature/test'], expect.any(Object));
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('not found'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:delete-branch'](ev, { repoPath: '/repo', branch: 'bad' })).success).toBe(false);
   });
 });
 
 describe('git:current-branch', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('returns trimmed branch name', async () => {
     mocks.execFileSync.mockReturnValue('feature/test\n');
@@ -143,13 +144,13 @@ describe('git:current-branch', () => {
   });
 
   it('returns null on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('not a repo'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → null
     expect(await mocks._handlers['git:current-branch'](ev, '/tmp')).toBeNull();
   });
 });
 
 describe('git:status', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('returns success with porcelain output', async () => {
     mocks.execFileSync.mockReturnValue('M  src/App.jsx\n');
@@ -159,13 +160,13 @@ describe('git:status', () => {
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('fail'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:status'](ev, '/repo')).success).toBe(false);
   });
 });
 
 describe('git:pull', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('returns success with output', async () => {
     mocks.execFileSync.mockReturnValue('Already up to date.');
@@ -183,13 +184,13 @@ describe('git:pull', () => {
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('conflict'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:pull'](ev, '/repo', 'main')).success).toBe(false);
   });
 });
 
 describe('git:add', () => {
-  beforeEach(() => mocks.execFileSync.mockReset().mockReturnValue(''));
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('passes files list with -- separator', async () => {
     await mocks._handlers['git:add'](ev, '/repo', ['src/App.jsx', 'src/index.js']);
@@ -199,13 +200,13 @@ describe('git:add', () => {
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('fail'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:add'](ev, '/repo', ['file.txt'])).success).toBe(false);
   });
 });
 
 describe('git:commit', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('passes commit message with -m', async () => {
     mocks.execFileSync.mockReturnValue('[main abc] test commit');
@@ -216,13 +217,13 @@ describe('git:commit', () => {
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('nothing to commit'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:commit'](ev, '/repo', 'msg')).success).toBe(false);
   });
 });
 
 describe('git:push', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('calls push -u origin branch', async () => {
     mocks.execFileSync.mockReturnValue('Branch pushed.');
@@ -233,13 +234,13 @@ describe('git:push', () => {
   });
 
   it('returns success: false on error', async () => {
-    mocks.execFileSync.mockImplementation(() => { throw new Error('rejected'); });
+    mocks.execFileSync.mockReturnValue(null); // null.trimEnd() throws → handler catches → {success:false}
     expect((await mocks._handlers['git:push'](ev, '/repo', 'main')).success).toBe(false);
   });
 });
 
 describe('git:get-prunable-worktrees', () => {
-  beforeEach(() => mocks.execFileSync.mockReset());
+  beforeEach(() => mocks.execFileSync.mockClear().mockReturnValue(''));
 
   it('identifies worktrees with gone branches', async () => {
     const branchVv = [

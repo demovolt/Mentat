@@ -11,6 +11,8 @@ import SettingsModal from './components/SettingsModal.jsx';
 let _counter = 0;
 function newTermId() { return `term-${++_counter}-${Date.now()}`; }
 
+const MAX_TABS = 3;
+
 const DEFAULT_SETTINGS = {
   ai: 'claude',
   loggingEnabled: false,
@@ -44,6 +46,7 @@ export default function App() {
   const errorTimerRef = useRef(null);
   const [terminalStatuses, setTerminalStatuses] = useState({});
   const [terminalSessionActive, setTerminalSessionActive] = useState({});
+  const [terminalAgents, setTerminalAgents] = useState({});
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -149,12 +152,19 @@ export default function App() {
     });
   }, []);
 
+  useEffect(() => {
+    return window.api.onWorktreeAgent(({ termId, agents }) => {
+      setTerminalAgents(prev => ({ ...prev, [termId]: agents }));
+    });
+  }, []);
+
   // ── Terminal management ───────────────────────────────────────────────────
 
   const addTerminal = useCallback((worktreePath, shellId) => {
     const id = newTermId();
     setTerminals((prev) => {
       const existing = prev.filter((t) => t.worktreePath === worktreePath);
+      if (existing.length >= MAX_TABS) return prev;
       const num = existing.length + 1;
       const profile = shellProfiles.find(p => p.id === shellId);
       const label = profile ? `${profile.name} ${num}` : `Terminal ${num}`;
@@ -167,6 +177,7 @@ export default function App() {
   const addAiTerminal = useCallback((worktreePath) => {
     const id = newTermId();
     setTerminals((prev) => {
+      if (prev.filter(t => t.worktreePath === worktreePath).length >= MAX_TABS) return prev;
       const existingAi = prev.filter(t => t.worktreePath === worktreePath && t.type === 'ai');
       const num = existingAi.length + 1;
       const label = `${deriveAiLabel(aiCommand)} ${num}`;
@@ -388,6 +399,7 @@ export default function App() {
           terminals={terminals}
           terminalStatuses={terminalStatuses}
           terminalSessionActive={terminalSessionActive}
+          terminalAgents={terminalAgents}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

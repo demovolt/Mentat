@@ -1,5 +1,6 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { within } from '@testing-library/react';
 import { describe, it, expect, vi } from 'vitest';
 import Sidebar from '../../src/components/Sidebar.jsx';
 
@@ -44,7 +45,8 @@ describe('Sidebar', () => {
         workspace: [sampleRepo],
         worktreesMap: { [sampleRepo.path]: sampleWorktrees },
       });
-      expect(screen.getByText('myrepo')).toBeInTheDocument();
+      // 'myrepo' appears in both the repo header and the first worktree item (same folder name)
+      expect(screen.getAllByText('myrepo').length).toBeGreaterThanOrEqual(1);
     });
 
     it('shows last path segment as repo name', () => {
@@ -64,12 +66,12 @@ describe('Sidebar', () => {
     });
 
     it('collapses worktree list when header is clicked', async () => {
-      const user = userEvent.setup();
       renderSidebar({
         workspace: [sampleRepo],
         worktreesMap: { [sampleRepo.path]: sampleWorktrees },
       });
-      await user.click(screen.getByText('myrepo'));
+      // Click via the span that has the repo path as title (unique selector)
+      fireEvent.click(screen.getByTitle(sampleRepo.path));
       await waitFor(() => {
         expect(screen.queryByText('feature/test')).not.toBeInTheDocument();
       });
@@ -77,16 +79,16 @@ describe('Sidebar', () => {
 
     it('shows + button on hover and calls onNewWorktree', async () => {
       const onNewWorktree = vi.fn();
-      const user = userEvent.setup();
-      const { container } = renderSidebar({
+      renderSidebar({
         workspace: [sampleRepo],
         worktreesMap: { [sampleRepo.path]: sampleWorktrees },
         onNewWorktree,
       });
-      const header = screen.getByText('myrepo').closest('div[class*="flex"]');
-      await user.hover(header);
+      // Use fireEvent to trigger the mouseEnter on the repo header row
+      const header = screen.getByTitle(sampleRepo.path).closest('div[class*="flex"]');
+      fireEvent.mouseEnter(header);
       await waitFor(() => screen.getByTitle('New Worktree'));
-      await user.click(screen.getByTitle('New Worktree'));
+      fireEvent.click(screen.getByTitle('New Worktree'));
       expect(onNewWorktree).toHaveBeenCalledWith(sampleRepo.path);
     });
   });
@@ -150,7 +152,7 @@ describe('Sidebar', () => {
         terminalSessionActive: { [termId]: true },
         terminalStatuses: { [termId]: 'working' },
       });
-      expect(screen.getByText('Working')).toBeInTheDocument();
+      expect(screen.getByText('Work')).toBeInTheDocument();
     });
 
     it('StatusDot shows green for working status', () => {
@@ -205,16 +207,20 @@ describe('Sidebar', () => {
     });
 
     describe('Context menu', () => {
+      function openContextMenu() {
+        const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
+        fireEvent.mouseEnter(item);
+        const dotsBtn = screen.getByText('•••');
+        fireEvent.click(dotsBtn);
+        return item;
+      }
+
       it('opens dropdown on three-dot button click', async () => {
-        const user = userEvent.setup();
         renderSidebar({
           workspace: [sampleRepo],
           worktreesMap: { [sampleRepo.path]: sampleWorktrees },
         });
-        const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
-        await user.hover(item);
-        await waitFor(() => screen.getByText('•••'));
-        await user.click(screen.getByText('•••'));
+        openContextMenu();
         await waitFor(() => {
           expect(screen.getByText('Rename')).toBeInTheDocument();
           expect(screen.getByText('Удалить')).toBeInTheDocument();
@@ -222,17 +228,13 @@ describe('Sidebar', () => {
       });
 
       it('clicking Rename enters inline rename mode', async () => {
-        const user = userEvent.setup();
         renderSidebar({
           workspace: [sampleRepo],
           worktreesMap: { [sampleRepo.path]: sampleWorktrees },
         });
-        const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
-        await user.hover(item);
-        await waitFor(() => screen.getByText('•••'));
-        await user.click(screen.getByText('•••'));
+        openContextMenu();
         await waitFor(() => screen.getByText('Rename'));
-        await user.click(screen.getByText('Rename'));
+        fireEvent.click(screen.getByText('Rename'));
         expect(screen.getByRole('textbox')).toBeInTheDocument();
       });
 
@@ -244,12 +246,9 @@ describe('Sidebar', () => {
           worktreesMap: { [sampleRepo.path]: sampleWorktrees },
           onRenameWorktree,
         });
-        const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
-        await user.hover(item);
-        await waitFor(() => screen.getByText('•••'));
-        await user.click(screen.getByText('•••'));
+        openContextMenu();
         await waitFor(() => screen.getByText('Rename'));
-        await user.click(screen.getByText('Rename'));
+        fireEvent.click(screen.getByText('Rename'));
         const input = screen.getByRole('textbox');
         await user.clear(input);
         await user.type(input, 'My Feature{Enter}');
@@ -264,12 +263,9 @@ describe('Sidebar', () => {
           worktreesMap: { [sampleRepo.path]: sampleWorktrees },
           onRenameWorktree,
         });
-        const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
-        await user.hover(item);
-        await waitFor(() => screen.getByText('•••'));
-        await user.click(screen.getByText('•••'));
+        openContextMenu();
         await waitFor(() => screen.getByText('Rename'));
-        await user.click(screen.getByText('Rename'));
+        fireEvent.click(screen.getByText('Rename'));
         await user.keyboard('{Escape}');
         expect(onRenameWorktree).not.toHaveBeenCalled();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
