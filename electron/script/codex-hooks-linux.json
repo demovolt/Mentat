@@ -1,0 +1,29 @@
+{
+  "description": "mentat",
+  "hooks": {
+    "session_start": [
+      { "command": "bash ~/.codex/mentat-hook.sh session_start" }
+    ],
+    "session_end": [
+      { "command": "bash ~/.codex/mentat-hook.sh session_stop" }
+    ],
+    "user_prompt_submit": [
+      { "command": "bash ~/.codex/mentat-hook.sh thinking" }
+    ],
+    "pre_tool_use": [
+      { "command": "bash ~/.codex/mentat-hook.sh working" }
+    ],
+    "post_tool_use": [
+      { "command": "bash ~/.codex/mentat-hook.sh thinking" }
+    ],
+    "stop": [
+      { "command": "bash ~/.codex/mentat-hook.sh idle" }
+    ],
+    "subagent_start": [
+      { "command": "bash ~/.codex/mentat-hook.sh agent_start" }
+    ],
+    "subagent_stop": [
+      { "command": "bash ~/.codex/mentat-hook.sh agent_stop" }
+    ]
+  }
+}
