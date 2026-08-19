@@ -5,6 +5,8 @@ const { terminalStatuses, terminalSessionActive, terminalSessionIds, terminalAge
 const { log } = require('./logger');
 
 const MAX_BODY_SIZE = 8192;
+const BASE_PORT = 27182;
+const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 
 function readBody(req, res, cb) {
   let body = '';
@@ -21,7 +23,29 @@ function readBody(req, res, cb) {
   req.on('end', () => { if (!oversized) cb(body); });
 }
 
-function startStatusServer(getWindow) {
+function tryListen(server, port) {
+  return new Promise((resolve, reject) => {
+    server.once('error', reject);
+    server.listen(port, '0.0.0.0', () => {
+      server.removeAllListeners('error');
+      resolve(port);
+    });
+  });
+}
+
+async function findPort(server) {
+  for (let port = BASE_PORT; port < BASE_PORT + 10; port++) {
+    try {
+      return await tryListen(server, port);
+    } catch (err) {
+      if (err.code !== 'EADDRINUSE') throw err;
+      log('WARN', `Port ${port} in use, trying ${port + 1}`);
+    }
+  }
+  throw new Error('No free port found in range 27182-27191');
+}
+
+function startStatusServer(getWindow, onPort) {
   const server = http.createServer((req, res) => {
     if (req.method !== 'POST') { res.writeHead(404).end(); return; }
 
@@ -29,7 +53,7 @@ function startStatusServer(getWindow) {
       readBody(req, res, (body) => {
         try {
           const { termId, agentId, event, description } = JSON.parse(body);
-          if (!termId || !agentId || !['start', 'stop'].includes(event)) { res.writeHead(400).end(); return; }
+          if (!termId || !SAFE_ID_RE.test(termId) || !agentId || !['start', 'stop'].includes(event)) { res.writeHead(400).end(); return; }
           if (!terminalAgents.has(termId)) terminalAgents.set(termId, new Map());
           const agentMap = terminalAgents.get(termId);
           if (event === 'start') {
@@ -47,38 +71,25 @@ function startStatusServer(getWindow) {
       return;
     }
 
-    if (req.url === '/session') {
-      readBody(req, res, (body) => {
-        try {
-          const { termId, sessionId } = JSON.parse(body);
-          if (!termId || !sessionId) { res.writeHead(400).end(); return; }
-          if (!terminalSessionIds.has(termId)) {
-            terminalSessionIds.set(termId, sessionId);
-            log('INFO', 'Session id assigned:', termId, sessionId);
-            const win = getWindow();
-            if (win && !win.isDestroyed()) {
-              win.webContents.send('session:id-updated', { termId, sessionId });
-            }
-          }
-          res.writeHead(200).end('ok');
-        } catch { res.writeHead(400).end(); }
-      });
-      return;
-    }
-
     if (req.url !== '/status') { res.writeHead(404).end(); return; }
     readBody(req, res, (body) => {
       try {
-        const { termId, status } = JSON.parse(body);
+        const { termId, status, sessionId } = JSON.parse(body);
         const validStatuses = ['working', 'idle', 'thinking', 'waiting', 'session_start', 'session_stop'];
-        if (!termId || !validStatuses.includes(status)) { res.writeHead(400).end(); return; }
+        if (!termId || !SAFE_ID_RE.test(termId) || !validStatuses.includes(status)) { res.writeHead(400).end(); return; }
         log('INFO', 'Status update:', termId, status);
         const win = getWindow();
         if (status === 'session_start') {
           terminalSessionActive.set(termId, true);
+          if (sessionId) {
+            terminalSessionIds.set(termId, sessionId);
+            log('INFO', 'Session id assigned:', termId, sessionId);
+            if (win && !win.isDestroyed()) win.webContents.send('session:id-updated', { termId, sessionId });
+          }
         } else if (status === 'session_stop') {
           terminalSessionActive.set(termId, false);
           terminalStatuses.delete(termId);
+          terminalSessionIds.delete(termId);
           if (terminalAgents.has(termId)) {
             terminalAgents.get(termId).clear();
             if (win && !win.isDestroyed()) win.webContents.send('worktree:agent-changed', { termId, agents: [] });
@@ -91,6 +102,9 @@ function startStatusServer(getWindow) {
         const currentStatus = terminalStatuses.get(termId) ?? null;
         if (win && !win.isDestroyed()) {
           win.webContents.send('worktree:status-changed', { termId, status: currentStatus, sessionActive });
+          log('INFO', 'IPC sent worktree:status-changed', termId, currentStatus, 'sessionActive:', sessionActive);
+        } else {
+          log('WARN', 'IPC skip — no window for', termId);
         }
         res.writeHead(200).end('ok');
       } catch { res.writeHead(400).end(); }
@@ -99,11 +113,14 @@ function startStatusServer(getWindow) {
 
   server.on('error', err => {
     log('ERROR', 'Status server error:', err.message);
-    if (err.code !== 'EADDRINUSE') console.error('[mentat] status server:', err);
+    console.error('[mentat] status server:', err);
   });
 
-  server.listen(27182, '0.0.0.0', () => {
-    log('INFO', 'Status server listening on :27182');
+  findPort(server).then(port => {
+    log('INFO', `Status server listening on :${port}`);
+    if (onPort) onPort(port);
+  }).catch(err => {
+    log('ERROR', 'Status server failed to start:', err.message);
   });
 
   return server;

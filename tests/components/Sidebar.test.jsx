@@ -223,7 +223,7 @@ describe('Sidebar', () => {
         openContextMenu();
         await waitFor(() => {
           expect(screen.getByText('Rename')).toBeInTheDocument();
-          expect(screen.getByText('Удалить')).toBeInTheDocument();
+          expect(screen.getByText('Delete')).toBeInTheDocument();
         });
       });
 
@@ -269,6 +269,49 @@ describe('Sidebar', () => {
         await user.keyboard('{Escape}');
         expect(onRenameWorktree).not.toHaveBeenCalled();
         expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
+      });
+
+      describe('Delete submenu', () => {
+        async function openDeleteSubmenu(props = {}) {
+          renderSidebar({
+            workspace: [sampleRepo],
+            worktreesMap: { [sampleRepo.path]: sampleWorktrees },
+            ...props,
+          });
+          openContextMenu();
+          await waitFor(() => screen.getByText(/Delete/));
+          const deleteWrapper = screen.getByText(/Delete/).closest('.relative');
+          fireEvent.mouseEnter(deleteWrapper);
+          await waitFor(() => screen.getByText('Worktree'));
+        }
+
+        it('hovering Delete reveals submenu with 3 options', async () => {
+          await openDeleteSubmenu();
+          expect(screen.getByText('Worktree')).toBeInTheDocument();
+          expect(screen.getByText('Branch')).toBeInTheDocument();
+          expect(screen.getByText('Worktree + branch')).toBeInTheDocument();
+        });
+
+        it('clicking Worktree calls onRemoveWorktree with worktree path', async () => {
+          const onRemoveWorktree = vi.fn();
+          await openDeleteSubmenu({ onRemoveWorktree });
+          fireEvent.click(screen.getByText('Worktree'));
+          expect(onRemoveWorktree).toHaveBeenCalledWith(sampleWorktrees[1].path, sampleRepo.path);
+        });
+
+        it('clicking Branch calls onDeleteBranch with worktree path', async () => {
+          const onDeleteBranch = vi.fn();
+          await openDeleteSubmenu({ onDeleteBranch });
+          fireEvent.click(screen.getByText('Branch'));
+          expect(onDeleteBranch).toHaveBeenCalledWith(sampleWorktrees[1].path, sampleRepo.path);
+        });
+
+        it('clicking Worktree + branch calls onRemoveBoth with worktree path', async () => {
+          const onRemoveBoth = vi.fn();
+          await openDeleteSubmenu({ onRemoveBoth });
+          fireEvent.click(screen.getByText('Worktree + branch'));
+          expect(onRemoveBoth).toHaveBeenCalledWith(sampleWorktrees[1].path, sampleRepo.path);
+        });
       });
     });
   });

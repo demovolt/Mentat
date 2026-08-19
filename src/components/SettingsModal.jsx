@@ -10,7 +10,7 @@ const NAV = [
   { id: 'connection', label: 'Connection' },
 ];
 
-export default function SettingsModal({ settings, onSettingsChange, onClose }) {
+export default function SettingsModal({ settings, onSettingsChange, shellProfiles = [], onClose }) {
   const [active, setActive] = useState('general');
 
   useEffect(() => {
@@ -68,8 +68,8 @@ export default function SettingsModal({ settings, onSettingsChange, onClose }) {
           </div>
 
           <div className="flex-1 px-5 py-5 overflow-y-auto">
-            {active === 'general'    && <GeneralTab settings={settings} set={set} />}
-            {active === 'git'        && <p className="text-[14px] text-[#444]">Настройки Git появятся здесь.</p>}
+            {active === 'general'    && <GeneralTab settings={settings} set={set} shellProfiles={shellProfiles} />}
+            {active === 'git'        && <p className="text-[14px] text-[#444]">Git settings will appear here.</p>}
             {active === 'console'    && <ConsoleTab settings={settings} set={set} />}
             {active === 'connection' && <ConnectionTab />}
           </div>

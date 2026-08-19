@@ -18,14 +18,8 @@ export function makeApiMock() {
     getWorktrees: vi.fn().mockResolvedValue([]),
     createWorktree: vi.fn().mockResolvedValue({ success: true }),
     removeWorktree: vi.fn().mockResolvedValue({ success: true }),
-    getPrunableWorktrees: vi.fn().mockResolvedValue({ success: true, worktrees: [] }),
     deleteBranch: vi.fn().mockResolvedValue({ success: true }),
     gitCurrentBranch: vi.fn().mockResolvedValue('main'),
-    gitStatus: vi.fn().mockResolvedValue({ success: true, output: '' }),
-    gitPull: vi.fn().mockResolvedValue({ success: true, output: 'Already up to date.' }),
-    gitAdd: vi.fn().mockResolvedValue({ success: true, output: '' }),
-    gitCommit: vi.fn().mockResolvedValue({ success: true, output: '[main abc1234] test' }),
-    gitPush: vi.fn().mockResolvedValue({ success: true, output: 'Branch pushed.' }),
 
     // PTY
     createTerminal: vi.fn(),

@@ -83,7 +83,7 @@ export default function WorktreeItem({ wt, active, customName, wtTerminals, term
           />
         ) : (
           <>
-            <div className="text-[14px] font-medium truncate leading-tight">
+            <div className="text-[12px] font-medium truncate leading-tight">
               {displayName}
             </div>
             {wt.branch && (
@@ -134,12 +134,12 @@ export default function WorktreeItem({ wt, active, customName, wtTerminals, term
           <div className="my-1 border-t border-[#222]" />
           <DropMenuItem submenu={(
             <>
-              <DropMenuItem onClick={(e) => { e.stopPropagation(); close(); onRemoveWorktree(); }}>Воркфри</DropMenuItem>
-              <DropMenuItem onClick={(e) => { e.stopPropagation(); close(); onDeleteBranch(); }}>Ветку</DropMenuItem>
-              <DropMenuItem danger onClick={(e) => { e.stopPropagation(); close(); onRemoveBoth(); }}>Воркфри + ветку</DropMenuItem>
+              <DropMenuItem onClick={(e) => { e.stopPropagation(); close(); onRemoveWorktree(); }}>Worktree</DropMenuItem>
+              <DropMenuItem onClick={(e) => { e.stopPropagation(); close(); onDeleteBranch(); }}>Branch</DropMenuItem>
+              <DropMenuItem danger onClick={(e) => { e.stopPropagation(); close(); onRemoveBoth(); }}>Worktree + branch</DropMenuItem>
             </>
           )}>
-            Удалить
+            Delete
           </DropMenuItem>
         </div>,
         document.body

@@ -4,7 +4,23 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   base: './',
-  build: { outDir: 'dist' },
+  build: {
+    outDir: 'dist',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'react-vendor': ['react', 'react-dom'],
+          'xterm-vendor': [
+            '@xterm/xterm',
+            '@xterm/addon-fit',
+            '@xterm/addon-webgl',
+            '@xterm/addon-web-links',
+            '@xterm/addon-clipboard',
+          ],
+        },
+      },
+    },
+  },
   server: {
     watch: {
       ignored: ['**/release/**', '**/dist/**'],

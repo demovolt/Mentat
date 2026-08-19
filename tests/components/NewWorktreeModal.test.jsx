@@ -39,7 +39,7 @@ describe('NewWorktreeModal', () => {
     renderModal({ onCreate });
     await user.type(screen.getByPlaceholderText('feature/my-feature'), '  my-branch  ');
     await user.click(screen.getByText('Create'));
-    expect(onCreate).toHaveBeenCalledWith({ branch: 'my-branch' });
+    expect(onCreate).toHaveBeenCalledWith({ branch: 'my-branch', worktreeName: 'my-branch', customName: 'my-branch' });
   });
 
   it('calls onCreate when Enter is pressed with non-empty input', async () => {
@@ -47,7 +47,7 @@ describe('NewWorktreeModal', () => {
     const user = userEvent.setup();
     renderModal({ onCreate });
     await user.type(screen.getByPlaceholderText('feature/my-feature'), 'feature/test{Enter}');
-    expect(onCreate).toHaveBeenCalledWith({ branch: 'feature/test' });
+    expect(onCreate).toHaveBeenCalledWith({ branch: 'feature/test', worktreeName: 'feature-test', customName: 'feature-test' });
   });
 
   it('does not call onCreate when Enter is pressed with empty input', async () => {

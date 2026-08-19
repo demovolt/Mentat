@@ -1,15 +1,30 @@
 'use strict';
 
 const { execFileSync } = require('child_process');
-const { parseWslPath, getWslHostIp, getOwnLinuxIp } = require('../helpers');
-const { terminalStatuses, terminalSessionActive } = require('../terminal-state');
+const { parseWslPath, winToLinux, getWslHostIp, getOwnLinuxIp } = require('../helpers');
+const { terminalStatuses, terminalSessionActive, terminalSessionIds, terminalAgents } = require('../terminal-state');
 const { log } = require('../logger');
 
 const SAFE_ID_RE = /^[a-zA-Z0-9_-]+$/;
 const SAFE_HOST_RE = /^(\d{1,3}\.){3}\d{1,3}$|^[a-zA-Z0-9][-a-zA-Z0-9.]*$/;
 const ALLOWED_AI_EXES = new Set(['claude', 'codex', 'claude.exe', 'codex.exe']);
 
-function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
+const BLOCKED_ENV_PREFIXES = ['npm_', 'ELECTRON_'];
+const BLOCKED_ENV_KEYS = new Set([
+  'NODE_ENV', 'NODE_OPTIONS', 'NODE_EXTRA_CA_CERTS', 'NODE_TLS_REJECT_UNAUTHORIZED',
+]);
+
+function safeEnv() {
+  const env = {};
+  for (const [key, val] of Object.entries(process.env)) {
+    if (BLOCKED_ENV_KEYS.has(key)) continue;
+    if (BLOCKED_ENV_PREFIXES.some(p => key.startsWith(p))) continue;
+    env[key] = val;
+  }
+  return env;
+}
+
+function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles, getStatusPort }) {
   ipcMain.on('pty:create', (_e, { termId, worktreePath, shellId, type, aiCommand, sessionId }) => {
     if (!pty) return;
     log('INFO', 'PTY create:', termId, 'path:', worktreePath, 'type:', type || 'shell', 'shell:', shellId || 'default');
@@ -43,36 +58,20 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
             ['-d', distro, '--', 'bash', '-c',
              `printf 'export MENTAT_TERM_ID=%s\\nexport MENTAT_STATUS_HOST=%s\\n' '${termId}' '${host}' > /tmp/mentat_env.sh`],
             { timeout: 3000 });
-        } catch {}
+        } catch (e) { log('WARN', 'WSL env setup failed:', e.message); }
       }
     }
 
-    const baseEnv = {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      USER: process.env.USER,
-      SHELL: process.env.SHELL,
-      TERM: process.env.TERM,
-      LANG: process.env.LANG,
-      USERPROFILE: process.env.USERPROFILE,
-      APPDATA: process.env.APPDATA,
-      LOCALAPPDATA: process.env.LOCALAPPDATA,
-      WSLENV: process.env.WSLENV,
-      COMSPEC: process.env.COMSPEC,
-      SYSTEMROOT: process.env.SystemRoot || process.env.SYSTEMROOT,
-    };
-    Object.keys(baseEnv).forEach(k => baseEnv[k] === undefined && delete baseEnv[k]);
-
+    const statusPort = getStatusPort ? getStatusPort() : 27182;
     const spawnOpts = (cwd, extraEnv = {}) => ({
       name: 'xterm-256color', cols: 80, rows: 24,
-      cwd, env: { ...baseEnv, MENTAT_TERM_ID: termId, ...extraEnv },
+      cwd, env: { ...safeEnv(), MENTAT_TERM_ID: termId, MENTAT_STATUS_PORT: String(statusPort), ...extraEnv },
     });
 
     let proc;
 
     if (type === 'ai') {
-      const parts = (aiCommand || 'claude').trim().split(/\s+/);
-      const [rawExe, ...claudeArgs] = parts;
+      const rawExe = (aiCommand || 'claude').trim().split(/\s+/)[0];
       const claudeExe = ALLOWED_AI_EXES.has(rawExe) ? rawExe : 'claude';
       const resumeArgs = sessionId ? ['--resume', sessionId] : [];
 
@@ -82,7 +81,7 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
         win.webContents.send('worktree:status-changed', { termId, status: null, sessionActive: true });
 
       if (wsl && process.platform === 'win32') {
-        const allArgs = [claudeExe, ...resumeArgs, ...claudeArgs];
+        const allArgs = [claudeExe, ...resumeArgs];
         const cmdStr = allArgs.map(a => `'${a.replace(/'/g, "'\\''")}'`).join(' ');
         proc = pty.spawn(
           'wsl.exe',
@@ -90,15 +89,16 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
           spawnOpts(process.env.USERPROFILE || 'C:\\', statusEnv)
         );
       } else {
-        proc = pty.spawn(claudeExe, [...resumeArgs, ...claudeArgs], spawnOpts(worktreePath, statusEnv));
+        proc = pty.spawn(claudeExe, [...resumeArgs], spawnOpts(worktreePath, statusEnv));
       }
     } else if (profile?.wsl) {
       const linuxPath = wsl ? wsl.linuxPath : worktreePath;
       proc = pty.spawn('wsl.exe', ['-d', profile.distro, '--cd', linuxPath],
         spawnOpts(process.env.USERPROFILE || 'C:\\', statusEnv));
     } else if (profile) {
+      const winCwd = wsl ? winToLinux(wsl.distro, wsl.linuxPath) : worktreePath;
       proc = pty.spawn(profile.cmd, profile.args || [],
-        spawnOpts(wsl ? (process.env.USERPROFILE || 'C:\\') : worktreePath, statusEnv));
+        spawnOpts(winCwd, statusEnv));
     }
 
     if (!proc) {
@@ -119,7 +119,9 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
     const flushPtyBuffer = () => {
       const win = getWindow();
       if (ptyBuffer && win && !win.isDestroyed()) {
-        win.webContents.send('pty:data', { termId, data: ptyBuffer });
+        try {
+          win.webContents.send('pty:data', { termId, data: ptyBuffer });
+        } catch { /* renderer frame disposed, ignore */ }
         ptyBuffer = '';
       }
       ptyFlushTimer = null;
@@ -162,6 +164,10 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles }) {
     log('INFO', 'PTY close:', termId);
     const proc = ptyProcesses.get(termId);
     if (proc) { proc.kill(); ptyProcesses.delete(termId); }
+    terminalStatuses.delete(termId);
+    terminalSessionActive.delete(termId);
+    terminalSessionIds.delete(termId);
+    terminalAgents.delete(termId);
   });
 }
 

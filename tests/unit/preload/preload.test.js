@@ -115,11 +115,6 @@ describe('preload contextBridge API', () => {
     expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:remove-worktree', opts);
   });
 
-  it('getPrunableWorktrees calls ipcRenderer.invoke with git:get-prunable-worktrees', async () => {
-    await exposedApi.getPrunableWorktrees('/repo');
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:get-prunable-worktrees', '/repo');
-  });
-
   it('deleteBranch calls ipcRenderer.invoke with git:delete-branch', async () => {
     const opts = { repoPath: '/repo', branch: 'feat' };
     await exposedApi.deleteBranch(opts);
@@ -129,31 +124,6 @@ describe('preload contextBridge API', () => {
   it('gitCurrentBranch calls ipcRenderer.invoke with git:current-branch', async () => {
     await exposedApi.gitCurrentBranch('/repo');
     expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:current-branch', '/repo');
-  });
-
-  it('gitStatus calls ipcRenderer.invoke with git:status', async () => {
-    await exposedApi.gitStatus('/repo');
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:status', '/repo');
-  });
-
-  it('gitPull calls ipcRenderer.invoke with git:pull and branch', async () => {
-    await exposedApi.gitPull('/repo', 'main');
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:pull', '/repo', 'main');
-  });
-
-  it('gitAdd calls ipcRenderer.invoke with git:add and files', async () => {
-    await exposedApi.gitAdd('/repo', ['file.txt']);
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:add', '/repo', ['file.txt']);
-  });
-
-  it('gitCommit calls ipcRenderer.invoke with git:commit and message', async () => {
-    await exposedApi.gitCommit('/repo', 'fix: bug');
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:commit', '/repo', 'fix: bug');
-  });
-
-  it('gitPush calls ipcRenderer.invoke with git:push and branch', async () => {
-    await exposedApi.gitPush('/repo', 'main');
-    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('git:push', '/repo', 'main');
   });
 
   it('createTerminal calls ipcRenderer.send with pty:create payload', () => {

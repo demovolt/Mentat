@@ -29,10 +29,10 @@ function register(ipcMain) {
     } catch { return []; }
   });
 
-  ipcMain.handle('git:create-worktree', (_e, { repoPath, branch, baseBranch }) => {
+  ipcMain.handle('git:create-worktree', (_e, { repoPath, branch, baseBranch, worktreeName }) => {
     try {
       log('INFO', 'git:create-worktree', branch, 'from', baseBranch);
-      const dirName = branch.replace(/\//g, '-').replace(/[^a-zA-Z0-9._-]/g, '_');
+      const dirName = worktreeName || branch.replace(/\//g, '-').replace(/[^a-zA-Z0-9._-]/g, '_');
       const wsl = parseWslPath(repoPath);
 
       if (wsl) {
@@ -50,7 +50,7 @@ function register(ipcMain) {
           log('WARN', 'internalFolder setup failed:', e.message);
           console.error('[mentat] internalFolder setup failed:', e.message);
         }
-        return { success: true };
+        return { success: true, worktreePath: newLinuxPath };
       }
 
       const worktreePath = path.join(path.dirname(repoPath), dirName);
@@ -66,7 +66,7 @@ function register(ipcMain) {
         log('WARN', 'internalFolder setup failed:', e.message);
         console.error('[mentat] internalFolder setup failed:', e.message);
       }
-      return { success: true };
+      return { success: true, worktreePath };
     } catch (e) {
       log('ERROR', 'git:create-worktree failed:', e.message);
       return { success: false, error: e.message };
@@ -87,25 +87,6 @@ function register(ipcMain) {
     }
   });
 
-  ipcMain.handle('git:get-prunable-worktrees', (_e, repoPath) => {
-    try {
-      const wsl = parseWslPath(repoPath);
-      try { gitRun(repoPath, ['fetch', '--prune']); } catch {}
-      const goneBranches = new Set(
-        gitRun(repoPath, ['branch', '-vv'])
-          .split('\n')
-          .filter(l => l.includes(': gone]'))
-          .map(l => l.trim().replace(/^[*+]\s+/, '').split(/\s+/)[0])
-      );
-      const wts = parseWorktrees(gitRun(repoPath, ['worktree', 'list', '--porcelain']));
-      const prunable = wts.slice(1).filter(wt => wt.branch && goneBranches.has(wt.branch));
-      const result = wsl ? prunable.map(wt => ({ ...wt, path: winToLinux(wsl.distro, wt.path) })) : prunable;
-      return { success: true, worktrees: result };
-    } catch (e) {
-      return { success: false, error: e.message };
-    }
-  });
-
   ipcMain.handle('git:delete-branch', (_e, { repoPath, branch }) => {
     try {
       gitRun(repoPath, ['branch', '-D', branch]);
@@ -120,30 +101,6 @@ function register(ipcMain) {
     catch { return null; }
   });
 
-  ipcMain.handle('git:status', (_e, dirPath) => {
-    try { return { success: true, output: gitRun(dirPath, ['status', '--porcelain']) }; }
-    catch (e) { return { success: false, error: e.stderr || e.message }; }
-  });
-
-  ipcMain.handle('git:pull', (_e, dirPath, branch) => {
-    try { return { success: true, output: gitRun(dirPath, ['pull', 'origin', branch]) }; }
-    catch (e) { return { success: false, error: e.stderr || e.message }; }
-  });
-
-  ipcMain.handle('git:add', (_e, dirPath, files) => {
-    try { return { success: true, output: gitRun(dirPath, ['add', '--', ...files]) }; }
-    catch (e) { return { success: false, error: e.stderr || e.message }; }
-  });
-
-  ipcMain.handle('git:commit', (_e, dirPath, message) => {
-    try { return { success: true, output: gitRun(dirPath, ['commit', '-m', message]) }; }
-    catch (e) { return { success: false, error: e.stderr || e.message }; }
-  });
-
-  ipcMain.handle('git:push', (_e, dirPath, branch) => {
-    try { return { success: true, output: gitRun(dirPath, ['push', '-u', 'origin', branch]) }; }
-    catch (e) { return { success: false, error: e.stderr || e.message }; }
-  });
 }
 
 module.exports = { register };

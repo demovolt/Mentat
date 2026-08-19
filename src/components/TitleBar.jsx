@@ -1,11 +1,12 @@
-export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune, isPruning, onAddRepo, onSettings }) {
+export default function TitleBar({ onAddRepo, onSettings }) {
   return (
     <div
       className="flex items-center justify-between h-8 px-3 shrink-0 bg-[#0a0a0a] border-b border-[#1c1c1c]"
       style={{ WebkitAppRegion: 'drag' }}
     >
       <div className="flex items-center gap-3">
-        <span className="text-[12px] font-bold tracking-[0.2em] text-[#7c3aed] uppercase">
+        <span className="flex items-center gap-1.5 text-[12px] font-bold tracking-[0.05em] text-[#7c3aed]">
+          <span className="w-2 h-2 rounded-full bg-[#7c3aed] shrink-0" />
           Mentat
         </span>
         <div style={{ WebkitAppRegion: 'no-drag' }}>
@@ -20,41 +21,6 @@ export default function TitleBar({ activeWorktreePath, onGit, repoPath, onPrune,
               <line x1="1" y1="7" x2="13" y2="7" />
             </svg>
             Add Repository
-          </button>
-        </div>
-        <div style={{ WebkitAppRegion: 'no-drag' }}>
-          <button
-            onClick={onGit}
-            disabled={!activeWorktreePath}
-            title="Git pipeline"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
-              disabled:opacity-25 disabled:cursor-not-allowed
-              text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] enabled:cursor-pointer"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor">
-              <circle cx="5" cy="3" r="1.5" />
-              <circle cx="5" cy="13" r="1.5" />
-              <circle cx="11" cy="5" r="1.5" />
-              <line x1="5" y1="4.5" x2="5" y2="11.5" stroke="currentColor" strokeWidth="1.5" />
-              <path d="M5 4.5 Q5 8 11 6.5" stroke="currentColor" strokeWidth="1.5" fill="none" />
-            </svg>
-            Git
-          </button>
-        </div>
-        <div style={{ WebkitAppRegion: 'no-drag' }}>
-          <button
-            onClick={onPrune}
-            disabled={!repoPath || isPruning}
-            title="Удалить воркфри смёрженных веток"
-            className="flex items-center gap-1.5 px-2 py-0.5 rounded text-[12px] transition-colors
-              disabled:opacity-25 disabled:cursor-not-allowed
-              text-[#666] hover:text-[#a78bfa] hover:bg-[#1e1e1e] enabled:cursor-pointer"
-          >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5">
-              <path d="M3 13 L13 3" strokeLinecap="round" />
-              <path d="M2 14 Q4 11 6 13 Q8 15 5 15 Z" fill="currentColor" stroke="none" />
-            </svg>
-            {isPruning ? '…' : 'Prune'}
           </button>
         </div>
         <div style={{ WebkitAppRegion: 'no-drag' }}>

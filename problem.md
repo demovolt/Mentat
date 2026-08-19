@@ -1,41 +1,41 @@
-# Проблема: статус Claude не отображается на Windows
+# Problem: Claude status not displayed on Windows
 
-## Суть
+## Summary
 
-Приложение (Electron) запущено на Windows, Claude Code работает внутри WSL-терминала.
-Статусные индикаторы (работает / ожидает) не обновляются на Windows-сборке, хотя на dev-сборке (Electron в Linux) всё работает.
+The app (Electron) runs on Windows, Claude Code runs inside a WSL terminal.
+Status indicators (running / waiting) do not update in the Windows build, although the dev build (Electron in Linux) works fine.
 
-## Почему так происходит
+## Why this happens
 
-Хуки Claude Code отправляют HTTP POST на `http://127.0.0.1:27182/status`.
+Claude Code hooks send an HTTP POST to `http://127.0.0.1:27182/status`.
 
-В dev-режиме Electron запущен в Linux (WSL), поэтому `127.0.0.1` — это локальный loopback, всё работает.
+In dev mode Electron runs in Linux (WSL), so `127.0.0.1` is the local loopback — everything works.
 
-В Windows-сборке Electron запущен на Windows. `127.0.0.1` внутри WSL-терминала — это **loopback самого WSL**, а не Windows. Запрос никуда не доходит.
+In the Windows build Electron runs on Windows. `127.0.0.1` inside the WSL terminal is the **WSL loopback**, not Windows. The request never arrives.
 
-WSL2 → Windows идёт через виртуальный сетевой адаптер (`vEthernet WSL`), и Windows Firewall участвует в этом трафике — даже для "локальной" коммуникации.
+WSL2 → Windows traffic goes through a virtual network adapter (`vEthernet WSL`), and Windows Firewall is involved in that traffic — even for "local" communication.
 
-## Текущее состояние кода
+## Current state of the code
 
-- Статус-сервер слушает на `0.0.0.0:27182` (вместо `127.0.0.1`) — уже исправлено
-- Хуки в `~/.claude/settings.json` используют `127.0.0.1` — не достигают Windows из WSL
+- The status server listens on `0.0.0.0:27182` (instead of `127.0.0.1`) — already fixed
+- Hooks in `~/.claude/settings.json` use `127.0.0.1` — do not reach Windows from WSL
 
-## Варианты решения
+## Solutions
 
-### Вариант 1 — Сетевой (MENTAT_STATUS_HOST)
-- При создании WSL-терминала определять IP Windows-хоста: `grep nameserver /etc/resolv.conf`
-- Передавать его в терминал через `MENTAT_STATUS_HOST`
-- Хук использует `http://${MENTAT_STATUS_HOST:-127.0.0.1}:27182/status`
-- Добавить правило Windows Firewall для порта 27182
-- **Минус:** требует firewall rule и сложная настройка
+### Option 1 — Network-based (MENTAT_STATUS_HOST)
+- When creating a WSL terminal, detect the Windows host IP: `grep nameserver /etc/resolv.conf`
+- Pass it to the terminal via `MENTAT_STATUS_HOST`
+- Hook uses `http://${MENTAT_STATUS_HOST:-127.0.0.1}:27182/status`
+- Add a Windows Firewall rule for port 27182
+- **Con:** requires a firewall rule and complex setup
 
-### Вариант 2 — Файловый (без сети)
-- Claude записывает статус в temp-файл (например `/tmp/mentat-status-{termId}`)
-- Electron следит за файлом через `fs.watch`
-- **Плюс:** не требует сети, firewall, работает везде
-- **Минус:** нужно менять хуки и добавить watcher в main.js
+### Option 2 — File-based (no network)
+- Claude writes status to a temp file (e.g. `/tmp/mentat-status-{termId}`)
+- Electron watches the file via `fs.watch`
+- **Pro:** no network or firewall required, works everywhere
+- **Con:** hooks need to change and a watcher must be added to main.js
 
-### Вариант 3 — Mirrored Networking
-- В WSL2 2.0+ (Windows 11 22H2+) можно включить mirrored networking в `~/.wslconfig`
-- Тогда `127.0.0.1` в WSL достигает Windows
-- **Минус:** зависит от версии Windows/WSL, требует настройки пользователем
+### Option 3 — Mirrored Networking
+- In WSL2 2.0+ (Windows 11 22H2+) mirrored networking can be enabled in `~/.wslconfig`
+- Then `127.0.0.1` in WSL reaches Windows
+- **Con:** depends on Windows/WSL version, requires user configuration

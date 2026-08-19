@@ -126,4 +126,27 @@ describe('TerminalTabs', () => {
       expect(screen.queryByText('Zsh')).not.toBeInTheDocument();
     });
   });
+
+  describe('Tab limit (atLimit)', () => {
+    const threeTabs = [
+      { id: 'term-1', label: 'Claude 1', type: 'ai' },
+      { id: 'term-2', label: 'Bash 1', type: null },
+      { id: 'term-3', label: 'Claude 2', type: 'ai' },
+    ];
+
+    it('+ AI button is disabled when 3 tabs exist', () => {
+      renderTabs({ tabs: threeTabs, activeId: 'term-1' });
+      expect(screen.getByText('+ AI').closest('button')).toBeDisabled();
+    });
+
+    it('+ Term button is disabled when 3 tabs exist', () => {
+      renderTabs({ tabs: threeTabs, activeId: 'term-1' });
+      expect(screen.getByTitle('New terminal')).toBeDisabled();
+    });
+
+    it('shell chevron hidden when at tab limit even with multiple profiles', () => {
+      renderTabs({ tabs: threeTabs, activeId: 'term-1', shellProfiles: sampleProfiles });
+      expect(screen.queryByTitle('Select shell')).not.toBeInTheDocument();
+    });
+  });
 });

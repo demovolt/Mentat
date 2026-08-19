@@ -71,6 +71,15 @@ describe('Status server - /status endpoint', () => {
     expect(call[1].status).toBeNull();
   });
 
+  it('session_start with sessionId sends session:id-updated IPC event', async () => {
+    const termId = `term-sid-${Date.now()}`;
+    const res = await makeRequest('POST', '/status', { termId, status: 'session_start', sessionId: 'sess-abc-123' });
+    expect(res.writeHead).toHaveBeenCalledWith(200);
+    const call = mocks.mockWin.webContents.send.mock.calls.find(c => c[0] === 'session:id-updated');
+    expect(call).toBeDefined();
+    expect(call[1]).toEqual({ termId, sessionId: 'sess-abc-123' });
+  });
+
   it('session_stop sets sessionActive false and clears status', async () => {
     const termId = `term-sp-${Date.now()}`;
     await makeRequest('POST', '/status', { termId, status: 'working' });
@@ -90,35 +99,47 @@ describe('Status server - /status endpoint', () => {
     const res = await makeRequest('POST', '/status', { status: 'working' });
     expect(res.writeHead).toHaveBeenCalledWith(400);
   });
+
+  it('returns 400 for termId with special characters', async () => {
+    const res = await makeRequest('POST', '/status', { termId: '../etc/passwd', status: 'working' });
+    expect(res.writeHead).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 400 for termId with spaces', async () => {
+    const res = await makeRequest('POST', '/status', { termId: 'term id', status: 'working' });
+    expect(res.writeHead).toHaveBeenCalledWith(400);
+  });
 });
 
-describe('Status server - /session endpoint', () => {
+describe('Status server - /agent endpoint', () => {
   beforeEach(() => { mocks.mockWin.webContents.send.mockClear(); });
 
-  it('assigns sessionId on first POST and sends IPC event', async () => {
-    const termId = `term-sess-${Date.now()}`;
-    const res = await makeRequest('POST', '/session', { termId, sessionId: 'sess-abc-123' });
+  it('returns 400 for agent event with invalid termId', async () => {
+    const res = await makeRequest('POST', '/agent', { termId: '<script>', agentId: 'a1', event: 'start' });
+    expect(res.writeHead).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 400 for agent event with missing agentId', async () => {
+    const res = await makeRequest('POST', '/agent', { termId: 'term-1', event: 'start' });
+    expect(res.writeHead).toHaveBeenCalledWith(400);
+  });
+
+  it('returns 400 for unknown agent event type', async () => {
+    const res = await makeRequest('POST', '/agent', { termId: 'term-1', agentId: 'a1', event: 'unknown' });
+    expect(res.writeHead).toHaveBeenCalledWith(400);
+  });
+
+  it('accepts valid agent start event', async () => {
+    const res = await makeRequest('POST', '/agent', { termId: 'term-1', agentId: 'agent-abc', event: 'start', description: 'doing work' });
     expect(res.writeHead).toHaveBeenCalledWith(200);
-    expect(mocks.mockWin.webContents.send).toHaveBeenCalledWith('session:id-updated', {
-      termId, sessionId: 'sess-abc-123',
-    });
+    expect(mocks.mockWin.webContents.send).toHaveBeenCalledWith('worktree:agent-changed', expect.objectContaining({ termId: 'term-1' }));
   });
 
-  it('does not override existing sessionId', async () => {
-    const termId = `term-sess-dup-${Date.now()}`;
-    await makeRequest('POST', '/session', { termId, sessionId: 'first' });
-    mocks.mockWin.webContents.send.mockClear();
-    await makeRequest('POST', '/session', { termId, sessionId: 'second' });
-    expect(mocks.mockWin.webContents.send).not.toHaveBeenCalled();
-  });
-
-  it('returns 400 when termId is missing', async () => {
-    const res = await makeRequest('POST', '/session', { sessionId: 'sess-123' });
-    expect(res.writeHead).toHaveBeenCalledWith(400);
-  });
-
-  it('returns 400 when sessionId is missing', async () => {
-    const res = await makeRequest('POST', '/session', { termId: 'term-1' });
-    expect(res.writeHead).toHaveBeenCalledWith(400);
+  it('truncates agent description to 60 chars', async () => {
+    const longDesc = 'a'.repeat(100);
+    await makeRequest('POST', '/agent', { termId: 'term-2', agentId: 'a1', event: 'start', description: longDesc });
+    const call = mocks.mockWin.webContents.send.mock.calls.find(c => c[0] === 'worktree:agent-changed');
+    expect(call[1].agents[0].description).toHaveLength(60);
   });
 });
+

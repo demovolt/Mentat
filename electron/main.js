@@ -10,13 +10,6 @@ const { getLogPath, log, setLoggingEnabled, closeLogStream } = require('./logger
 const { loadConfig, saveConfig, loadState, saveState } = require('./config');
 const { startStatusServer } = require('./status-server');
 const { ensureFirewallRule } = require('./helpers');
-const {
-  setupWindowsHooks,
-  setupUnixClaudeWrapper, setupWslClaudeWrapper, setupPowerShellWrapper,
-  setupUnixCodexWrapper, setupWslCodexWrapper, setupPowerShellCodexWrapper,
-} = require('./wrappers');
-const { setupUnixCodexHooks, setupWslCodexHooks, setupWindowsCodexHooks } = require('./codex-hooks');
-const { setupUnixClaudeHooks, setupWslClaudeHooks, hasMentatHooks } = require('./claude-hooks');
 const { getShellProfiles } = require('./shell-profiles');
 const gitIpc = require('./ipc/git');
 const ptyIpc = require('./ipc/pty');
@@ -49,28 +42,6 @@ const ptyProcesses = new Map();
 let mainWindow;
 let statusServer;
 
-function getWorktrees() {
-  const { execSync } = require('child_process');
-  const cfg = loadConfig();
-  const result = [];
-  for (const ws of cfg.workspace || []) {
-    const wsPath = typeof ws === 'string' ? ws : ws.path;
-    if (!wsPath) continue;
-    try {
-      const raw = execSync('git worktree list --porcelain', { cwd: wsPath, encoding: 'utf8', timeout: 5000 });
-      const worktrees = [];
-      let current = {};
-      for (const line of raw.split('\n')) {
-        if (line.startsWith('worktree ')) { current = { path: line.slice(9) }; }
-        else if (line.startsWith('branch ')) { current.branch = line.slice(7); worktrees.push(current); }
-        else if (line === 'bare') { current.bare = true; worktrees.push(current); }
-      }
-      result.push({ workspace: wsPath, worktrees });
-    } catch {}
-  }
-  return result;
-}
-
 const getWindow = () => mainWindow;
 
 // ── Window ────────────────────────────────────────────────────────────────────
@@ -87,6 +58,7 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      devTools: isDev,
     },
   });
 
@@ -94,8 +66,22 @@ function createWindow() {
 
   mainWindow.webContents.on('render-process-gone', (_e, details) => {
     log('ERROR', 'Renderer process gone:', JSON.stringify(details));
+    console.error('[mentat] render-process-gone:', details.reason, 'exitCode:', details.exitCode);
   });
   mainWindow.on('closed', () => log('INFO', 'Window closed'));
+
+  if (!isDev) {
+    mainWindow.webContents.session?.webRequest?.onHeadersReceived((details, callback) => {
+      callback({
+        responseHeaders: {
+          ...details.responseHeaders,
+          'Content-Security-Policy': [
+            "default-src 'self'; script-src 'self' 'unsafe-eval'; style-src 'self' 'unsafe-inline'; font-src 'self' data:; img-src 'self' data: blob:; connect-src 'self' http://127.0.0.1:* ws://127.0.0.1:*",
+          ],
+        },
+      });
+    });
+  }
 
   if (isDev) {
     mainWindow.loadURL('http://localhost:5173');
@@ -106,25 +92,15 @@ function createWindow() {
 
 // ── App lifecycle ─────────────────────────────────────────────────────────────
 
+let statusPort = 27182;
+
 app.whenReady().then(() => {
   const cfg = loadConfig();
   if (cfg.settings?.loggingEnabled) setLoggingEnabled(true);
   log('INFO', 'App ready');
   createWindow();
-  statusServer = startStatusServer(getWindow);
+  statusServer = startStatusServer(getWindow, (port) => { statusPort = port; });
   ensureFirewallRule();
-  setupWindowsHooks();
-  setupUnixClaudeWrapper();
-  setupWslClaudeWrapper();
-  setupPowerShellWrapper();
-  setupUnixCodexWrapper();
-  setupWslCodexWrapper();
-  setupPowerShellCodexWrapper();
-  setupUnixCodexHooks();
-  setupWslCodexHooks();
-  setupWindowsCodexHooks();
-  setupUnixClaudeHooks();
-  setupWslClaudeHooks();
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
@@ -135,7 +111,10 @@ app.on('before-quit', () => {
     try { proc.kill(); } catch {}
     ptyProcesses.delete(termId);
   }
-  statusServer?.close();
+  if (statusServer) {
+    try { statusServer.closeAllConnections?.(); } catch {}
+    statusServer.close();
+  }
   closeLogStream();
 });
 
@@ -197,14 +176,14 @@ ipcMain.handle('connection:check', async () => {
   if (isWin) {
     const base = process.env.USERPROFILE || '';
     const winScripts = [
-      { id: 'win-claude-wrap', label: 'Claude wrapper', group: 'Windows (.claude)', file: path.join(base, '.claude', 'mentat-claude-wrap.ps1') },
-      { id: 'win-codex-wrap',  label: 'Codex wrapper',  group: 'Windows (.codex)',  file: path.join(base, '.codex', 'mentat-codex-wrap.ps1') },
+      { id: 'win-claude-hook', label: 'Claude hook', group: 'Windows (.claude)', file: path.join(base, '.claude', 'mentat-hook.ps1') },
+      { id: 'win-codex-hook',  label: 'Codex hook',  group: 'Windows (.codex)',  file: path.join(base, '.codex', 'mentat-hook.ps1') },
     ];
     for (const s of winScripts) results.push({ ...s, exists: fs.existsSync(s.file) });
 
     const wslEntries = [
-      { id: 'wsl-claude-wrap',    label: 'Claude wrapper', group: 'WSL (.claude)', wslPath: '~/.claude/mentat-claude-wrap.sh' },
-      { id: 'wsl-codex-wrap',     label: 'Codex wrapper',  group: 'WSL (.codex)',  wslPath: '~/.codex/mentat-codex-wrap.sh' },
+      { id: 'wsl-claude-hook', label: 'Claude hook', group: 'WSL (.claude)', wslPath: '~/.claude/mentat-hook.sh' },
+      { id: 'wsl-codex-hook',  label: 'Codex hook',  group: 'WSL (.codex)',  wslPath: '~/.codex/mentat-hook.sh' },
     ];
     try {
       const cmd = wslEntries.map(s => `[ -f ${s.wslPath} ] && echo 1 || echo 0`).join(';');
@@ -217,19 +196,11 @@ ipcMain.handle('connection:check', async () => {
   } else {
     const home = process.env.HOME || '';
     const scripts = [
-      { id: 'claude-wrap',  label: 'Claude wrapper', group: 'Claude', file: path.join(home, '.claude', 'mentat-claude-wrap.sh') },
-      { id: 'codex-wrap',   label: 'Codex wrapper',  group: 'Codex',  file: path.join(home, '.codex', 'mentat-codex-wrap.sh') },
+      { id: 'claude-hook', label: 'Claude hook', group: 'Claude', file: path.join(home, '.claude', 'mentat-hook.sh') },
+      { id: 'codex-hook',  label: 'Codex hook',  group: 'Codex',  file: path.join(home, '.codex', 'mentat-hook.sh') },
     ];
     for (const s of scripts) results.push({ ...s, exists: fs.existsSync(s.file) });
 
-    // Check if mentat hooks are registered in Claude settings
-    const settingsPath = path.join(home, '.claude', 'settings.json');
-    let hooksRegistered = false;
-    try {
-      const s = JSON.parse(fs.readFileSync(settingsPath, 'utf8'));
-      hooksRegistered = hasMentatHooks(s);
-    } catch {}
-    results.push({ id: 'claude-hooks', label: 'Claude hooks', group: 'Claude', exists: hooksRegistered });
   }
 
   let serverRunning = false;
@@ -274,4 +245,4 @@ ipcMain.handle('connection:send-test-status', async (_e, status) => {
 // ── IPC: Git & PTY ────────────────────────────────────────────────────────────
 
 gitIpc.register(ipcMain);
-ptyIpc.register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles });
+ptyIpc.register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles, getStatusPort: () => statusPort });

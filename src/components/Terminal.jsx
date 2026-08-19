@@ -38,7 +38,7 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
     xterm.loadAddon(new WebLinksAddon((_, url) => {
       if (/^https?:\/\//i.test(url)) window.open(url, '_blank');
     }));
-    xterm.loadAddon(new ClipboardAddon());
+    if (navigator.clipboard?.readText) xterm.loadAddon(new ClipboardAddon());
 
     try {
       const webgl = new WebglAddon();

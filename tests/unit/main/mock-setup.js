@@ -94,8 +94,6 @@ export function setupMainMocks() {
     '../../../electron/logger.js',
     '../../../electron/config.js',
     '../../../electron/status-server.js',
-    '../../../electron/wrappers.js',
-    '../../../electron/codex-hooks.js',
     '../../../electron/shell-profiles.js',
     '../../../electron/ipc/git.js',
     '../../../electron/ipc/pty.js',

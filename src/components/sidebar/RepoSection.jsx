@@ -28,7 +28,7 @@ export default function RepoSection({
       >
         <ChevronIcon collapsed={collapsed} />
         <span
-          className="text-[14px] text-white font-semibold truncate flex-1"
+          className="text-[14px] text-white font-bold truncate flex-1"
           title={repo.path}
         >
           {repoName}

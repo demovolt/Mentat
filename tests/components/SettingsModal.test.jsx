@@ -42,7 +42,7 @@ describe('SettingsModal', () => {
     const user = userEvent.setup();
     renderModal();
     await user.click(screen.getByRole('button', { name: 'Git' }));
-    expect(screen.getByText('Настройки Git появятся здесь.')).toBeInTheDocument();
+    expect(screen.getByText('Git settings will appear here.')).toBeInTheDocument();
   });
 
   it('calls onClose when × button is clicked', async () => {

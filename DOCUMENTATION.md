@@ -52,7 +52,7 @@ Mentat provides:
 
 This is the core technical feature of Mentat. When you run Claude or Codex inside a Mentat terminal, the app needs to know what the AI is doing at any moment — is it thinking? working on files? done? — so it can update the status indicators in the sidebar.
 
-This is achieved through three complementary mechanisms: **shell wrappers**, **lifecycle hooks**, and a **local HTTP status server**.
+This is achieved through a **hook script** that you install once and register with Claude/Codex, plus a **local HTTP status server** that Mentat runs in the background.
 
 ### Architecture Overview
 
@@ -66,7 +66,7 @@ This is achieved through three complementary mechanisms: **shell wrappers**, **l
 │  │   statuses)  │              │  ┌──────────────────────────┐   │  │
 │  └──────────────┘              │  │  Status Server :27182    │   │  │
 │                                │  │  POST /status → UI update│   │  │
-│                                │  │  POST /session → resume  │   │  │
+│                                │  │  POST /agent  → UI update│   │  │
 │                                │  └──────────┬───────────────┘   │  │
 │                                └─────────────┼───────────────────┘  │
 │                                              │ HTTP                  │
@@ -79,108 +79,67 @@ This is achieved through three complementary mechanisms: **shell wrappers**, **l
 │                                                                    │
 │   MENTAT_TERM_ID=term-3-1720000000                                 │
 │   MENTAT_STATUS_HOST=127.0.0.1                                     │
+│   MENTAT_STATUS_PORT=27182                                         │
 │                                                                    │
-│   ┌─────────────────────┐    ┌────────────────────────────────┐   │
-│   │  Shell Wrapper       │    │  Codex Lifecycle Hooks         │   │
-│   │  (~/.claude/        │    │  (~/.codex/mentat-hook.sh)     │   │
-│   │   mentat-wrap.sh)   │    │                                │   │
-│   │                     │    │  PreToolUse → POST "working"   │   │
-│   │  session_start POST │    │  Stop       → POST "idle"      │   │
-│   │  → runs claude      │    └────────────────────────────────┘   │
-│   │  session_stop  POST │                                          │
-│   └─────────────────────┘    ┌────────────────────────────────┐   │
-│                               │  Session ID Hook               │   │
-│                               │  (~/.claude/mentat-session-    │   │
-│                               │   hook.sh)                     │   │
-│                               │                                │   │
-│                               │  Reads session_id from JSON    │   │
-│                               │  → POST /session               │   │
-│                               └────────────────────────────────┘   │
+│   ┌──────────────────────────────────────────────────────────┐    │
+│   │  Hook Script (~/.claude/mentat-hook.sh)                   │    │
+│   │  called by Claude/Codex lifecycle hooks                   │    │
+│   │                                                           │    │
+│   │  mentat-hook.sh session_start   ← Notification hook      │    │
+│   │  mentat-hook.sh working         ← PreToolUse hook        │    │
+│   │  mentat-hook.sh thinking        ← PostToolUse hook       │    │
+│   │  mentat-hook.sh idle            ← Stop hook              │    │
+│   │  mentat-hook.sh agent_start     ← PreToolUse (dispatch)  │    │
+│   │  mentat-hook.sh agent_stop      ← SubagentStop hook      │    │
+│   └──────────────────────────────────────────────────────────┘    │
 └────────────────────────────────────────────────────────────────────┘
 ```
 
-### Mechanism 1 — Shell Wrappers
+### The Hook Script
 
-When Mentat starts, it automatically writes a shell function into your shell profile (`.bashrc`, `.zshrc`, or PowerShell profile). This function wraps the `claude` and `codex` commands transparently.
+Mentat ships a single hook script (`mentat-hook.sh` on Linux/macOS, `mentat-hook.ps1` on Windows) that you copy to your `~/.claude/` and `~/.codex/` directories and register with each tool's hook system.
 
-**What the wrapper does:**
+The script receives a single argument — the **action** — and optionally reads a JSON payload from stdin (for `session_start`, `agent_start`, `agent_stop`).
 
-1. User types `claude` in a Mentat terminal
-2. The wrapper intercepts the call and sends a `session_start` status update to Mentat
-3. The real `claude` binary is executed with all original arguments passed through
-4. When Claude exits, the wrapper sends a `session_stop` update
-5. The sidebar status indicator updates accordingly
+**Actions:**
 
-The wrapper communicates via HTTP POST to `http://$MENTAT_STATUS_HOST:27182/status`:
-
-```json
-{ "termId": "term-3-1720000000", "status": "session_start" }
-```
-
-The wrapper only activates when the terminal has `MENTAT_TERM_ID` set — terminals outside of Mentat are not affected.
-
-**Hook scripts location:**
-
-| Platform | Claude wrapper | Codex wrapper |
+| Action | Trigger | Transport |
 |---|---|---|
-| Linux / macOS | `~/.claude/mentat-claude-wrap.sh` | `~/.codex/mentat-codex-wrap.sh` |
-| WSL | `~/.claude/mentat-claude-wrap.sh` (inside WSL) | `~/.codex/mentat-codex-wrap.sh` (inside WSL) |
-| Windows (PowerShell) | `~/.claude/mentat-claude-wrap.ps1` | `~/.codex/mentat-codex-wrap.ps1` |
+| `session_start` | Claude/Codex session begins; reads `session_id` from stdin JSON | POST `/status` |
+| `session_stop` | Claude/Codex process exited | POST `/status` |
+| `thinking` | AI is processing between tool calls | POST `/status` |
+| `working` | AI is actively executing a tool | POST `/status` |
+| `idle` | AI finished its current task | POST `/status` |
+| `waiting` | AI is waiting for user input | POST `/status` |
+| `agent_start` | A subagent was spawned; reads agent info from stdin JSON | POST `/agent` |
+| `agent_stop` | A subagent finished; reads agent info from stdin JSON | POST `/agent` |
 
-### Mechanism 2 — Codex Lifecycle Hooks
+The script is a no-op when `MENTAT_TERM_ID` is not set, so it is safe to install globally — it only activates inside Mentat terminals.
 
-For **Codex**, Mentat also registers lifecycle hooks directly into Codex's hook system. This gives finer-grained status updates — the UI knows not just when a session starts or stops, but also when Codex is actively executing a tool.
+### Status Server Endpoints
 
-Mentat creates two files:
+Mentat runs an HTTP server on port **27182** (falls back to 27183–27191 if the port is taken).
 
-- `~/.codex/mentat-hook.sh` — the hook script
-- `~/.codex/hooks.json` — registers the hooks with Codex
-
-**Registered hooks:**
-
-| Hook | Trigger | Status sent |
+| Endpoint | Payload | Purpose |
 |---|---|---|
-| `PreToolUse` | Before Codex executes any tool (file edit, shell command, etc.) | `working` |
-| `Stop` | When Codex finishes its response | `idle` |
+| `POST /status` | `{ termId, status, sessionId? }` | Update terminal status; `session_start` can carry `sessionId` for resume |
+| `POST /agent` | `{ termId, agentId, event, description? }` | Track subagent lifecycle (`event`: `start` or `stop`) |
 
-The hook reads the `MENTAT_TERM_ID` environment variable to know which terminal to update, then POSTs to the status server.
+### Session Resumption
 
-### Mechanism 3 — Session ID Capture (Claude `--resume`)
-
-Claude assigns a unique `session_id` to each conversation. Mentat captures this ID so that if you close a Claude terminal and reopen it, the conversation continues from where it left off.
-
-**How it works:**
-
-1. Mentat installs `~/.claude/mentat-session-hook.sh`
-2. This script reads Claude's JSON output from stdin, extracts the `session_id` field
-3. It POSTs the ID to `http://$MENTAT_STATUS_HOST:27182/session`:
-   ```json
-   { "termId": "term-3-1720000000", "sessionId": "abc-123-..." }
-   ```
-4. Mentat stores the ID and associates it with the terminal
-5. When that terminal is reopened, Mentat spawns Claude with `--resume abc-123-...`
+When a `session_start` event arrives with a `sessionId`, Mentat stores it. The next time you open an AI terminal for the same worktree, Mentat passes `--resume <sessionId>` to Claude automatically. The conversation continues from where it left off.
 
 ### Environment Variables
 
-Every terminal Mentat creates has these variables set in its environment:
+Every terminal Mentat creates has these variables set:
 
 | Variable | Value | Purpose |
 |---|---|---|
 | `MENTAT_TERM_ID` | e.g. `term-3-1720000000` | Unique identifier for this terminal tab |
 | `MENTAT_STATUS_HOST` | `127.0.0.1` (or WSL host IP) | Address of the Mentat status server |
+| `MENTAT_STATUS_PORT` | e.g. `27182` | Port of the Mentat status server |
 
-On Windows + WSL, these variables are forwarded into the WSL environment using `WSLENV`. Mentat automatically resolves the correct host IP so hooks from within WSL can reach the Windows-side status server.
-
-### Status Values
-
-| Status | Meaning |
-|---|---|
-| `session_start` | Claude/Codex process launched |
-| `working` | AI is actively using a tool (Codex) |
-| `thinking` | AI is processing (intermediate state) |
-| `waiting` | AI is waiting for user input |
-| `idle` | AI finished its current task |
-| `session_stop` | Claude/Codex process exited |
+On Windows + WSL, these variables are forwarded into the WSL environment using `WSLENV`. Mentat automatically resolves the correct Windows host IP so hooks from within WSL can reach the Windows-side status server.
 
 ---
 
@@ -266,22 +225,137 @@ Add to `~/.bashrc` or `~/.zshrc`.
 
 ---
 
-### Step 3 — Launch Mentat
+### Step 3 — Install the Mentat Hook Script
+
+Mentat's status integration requires a small hook script that Claude and Codex call during their lifecycle events. You install it once; it then works across all projects automatically.
+
+The hook scripts are bundled inside the Mentat app:
+
+| Platform | Script in app |
+|---|---|
+| Linux / macOS | `resources/app/electron/script/mentat-hook.sh` |
+| Windows | `resources/app/electron/script/mentat-hook.ps1` |
+
+When building from source, the scripts are at `electron/script/mentat-hook.sh` (or `.ps1`).
+
+#### Linux / macOS
+
+```bash
+# Create target directories
+mkdir -p ~/.claude ~/.codex
+
+# Copy the hook script (adjust the source path to match your Mentat installation)
+cp /path/to/mentat/electron/script/mentat-hook.sh ~/.claude/mentat-hook.sh
+cp /path/to/mentat/electron/script/mentat-hook.sh ~/.codex/mentat-hook.sh
+
+# Make executable
+chmod +x ~/.claude/mentat-hook.sh ~/.codex/mentat-hook.sh
+```
+
+#### Windows (PowerShell)
+
+```powershell
+# Create target directories
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude"
+New-Item -ItemType Directory -Force "$env:USERPROFILE\.codex"
+
+# Copy the hook script
+Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$env:USERPROFILE\.claude\mentat-hook.ps1"
+Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$env:USERPROFILE\.codex\mentat-hook.ps1"
+```
+
+#### Windows + WSL
+
+Copy the `.sh` script inside your WSL environment (same as Linux above), and the `.ps1` script on the Windows side if you also run native Windows PowerShell terminals.
+
+---
+
+### Step 4 — Register the Hook with Claude Code
+
+Claude Code calls registered hooks at specific lifecycle points. Add the following to `~/.claude/settings.json` (create the file if it doesn't exist):
+
+```json
+{
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/mentat-hook.sh session_start" }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/mentat-hook.sh working" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/mentat-hook.sh thinking" }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/mentat-hook.sh idle" }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          { "type": "command", "command": "~/.claude/mentat-hook.sh agent_stop" }
+        ]
+      }
+    ]
+  }
+}
+```
+
+If you already have a `settings.json` with other hooks, merge the `hooks` object rather than replacing the whole file.
+
+> **Windows (PowerShell):** Replace `~/.claude/mentat-hook.sh` with the full path to `mentat-hook.ps1` and prefix the command with `powershell -File`.
+
+---
+
+### Step 5 — Register the Hook with Codex
+
+Codex reads its hooks from `~/.codex/hooks.json`. Create or update that file:
+
+```json
+{
+  "hooks": {
+    "PreToolUse": [
+      { "command": "~/.codex/mentat-hook.sh working" }
+    ],
+    "Stop": [
+      { "command": "~/.codex/mentat-hook.sh idle" }
+    ]
+  }
+}
+```
+
+---
+
+### Step 6 — Launch Mentat
 
 1. Start `Mentat.exe` (Windows) or `Mentat.AppImage` (Linux) or open the macOS app
 
 2. On first launch, Mentat automatically:
    - Starts the status server on port **27182**
-   - Writes shell wrapper scripts to `~/.claude/` and `~/.codex/`
-   - Appends `source` lines to your `.bashrc` / `.zshrc` / PowerShell profile
-   - Registers Codex hooks in `~/.codex/hooks.json`
    - On Windows: adds a firewall rule for port 27182
 
-No manual hook setup is needed — Mentat handles everything automatically.
+3. Open **Settings → Connection** to verify the setup:
+   - **Status Server** shows green if the server is reachable
+   - **Scripts** section shows a ✓ or ✗ next to each expected hook file
 
 ---
 
-### Step 4 — Add a Repository
+### Step 7 — Add a Repository
 
 1. Click the **"+"** button in the top toolbar
 2. Select the root folder of a Git repository
@@ -289,7 +363,7 @@ No manual hook setup is needed — Mentat handles everything automatically.
 
 ---
 
-### Step 5 — Open a Terminal
+### Step 8 — Open a Terminal
 
 Click on any worktree in the sidebar to select it, then:
 
@@ -300,7 +374,7 @@ The terminal opens pre-configured with the correct working directory and with `M
 
 ---
 
-### Step 6 — Work with Claude or Codex
+### Step 9 — Work with Claude or Codex
 
 **In an AI terminal:**
 
@@ -309,20 +383,21 @@ The AI launches automatically. You can interact with it directly through the ter
 | Indicator | Meaning |
 |---|---|
 | `idle` | AI is ready, waiting for your message |
+| `thinking` | AI is processing between tool calls |
 | `working` | AI is executing a tool (reading/writing files, running commands) |
 | `waiting` | AI needs input from you |
 
 **Session resumption:**
 
-If you close an AI terminal and click the AI button again, Mentat automatically resumes the previous conversation. You do not need to do anything — the `--resume` flag is added behind the scenes.
+If you close an AI terminal and click the AI button again, Mentat automatically resumes the previous conversation. You do not need to do anything — the `--resume` flag is added behind the scenes using the session ID captured at startup.
 
 **In a shell terminal:**
 
-Simply type `claude` or `codex` in any Mentat shell terminal. The wrappers are active, and Mentat will track the session status automatically.
+You can still type `claude` or `codex` manually. The hooks registered in Steps 4–5 are active globally, so Mentat will track the session status automatically as long as `MENTAT_TERM_ID` is set (which it is in every Mentat terminal).
 
 ---
 
-### Step 7 — Manage Worktrees
+### Step 10 — Manage Worktrees
 
 **Create a new worktree (new branch):**
 
@@ -341,7 +416,7 @@ Click the **Prune** button in the toolbar. Mentat scans for worktrees whose bran
 
 ---
 
-### Step 8 — Adjust Settings
+### Step 11 — Adjust Settings
 
 Click the **Settings** (gear) icon in the toolbar:
 
@@ -352,13 +427,23 @@ Click the **Settings** (gear) icon in the toolbar:
 | **Console Font** | Font family used in all terminals |
 | **Console Font Size** | Font size in pixels |
 
+The **Connection** tab lets you verify that the hook scripts are installed and the status server is running.
+
 ---
 
 ### Troubleshooting
 
+**Status indicators not updating**
+
+1. Open **Settings → Connection** and check:
+   - Is the status server shown as running?
+   - Are the hook scripts shown as installed (✓)?
+2. If a script shows ✗, repeat Step 3 — the file is missing from the expected location.
+3. If the server shows as not reachable, restart Mentat.
+
 **Status indicators not updating (Windows + WSL)**
 
-This happens when WSL cannot reach the Windows-side status server via `127.0.0.1`. Mentat automatically resolves the correct Windows host IP and adds a firewall rule, but if it fails:
+WSL cannot reach the Windows-side status server via `127.0.0.1`. Mentat automatically resolves the correct Windows host IP and adds a firewall rule, but if it fails:
 
 1. Open PowerShell and run:
    ```powershell
@@ -366,20 +451,18 @@ This happens when WSL cannot reach the Windows-side status server via `127.0.0.1
    ```
 2. Restart Mentat
 
-**Hooks not loading in the shell**
+**Hooks not firing**
 
-Verify that the wrapper source line was added to your shell profile:
+Verify that the hook file is executable and the path in `~/.claude/settings.json` is correct:
 
 ```bash
-# Check .bashrc
-grep mentat ~/.bashrc
+# Check permissions
+ls -la ~/.claude/mentat-hook.sh
 
-# Should contain:
-# source ~/.claude/mentat-claude-wrap.sh
-# source ~/.codex/mentat-codex-wrap.sh
+# Test the hook manually (should produce no output and exit 0 when MENTAT_TERM_ID is unset)
+~/.claude/mentat-hook.sh idle
+echo $?
 ```
-
-If missing, restart Mentat — it re-writes the hooks on every launch.
 
 **Claude command not found inside WSL**
 
@@ -393,7 +476,7 @@ claude --version
 
 **Port 27182 conflict**
 
-If another application is using port 27182, Mentat's status server will fail to start and status indicators will not work. Identify and stop the conflicting process:
+If another application is using port 27182, Mentat tries ports 27183–27191 automatically. The active port is shown in **Settings → Connection**. If all ports fail, identify and stop the conflicting process:
 
 ```bash
 # Linux / WSL

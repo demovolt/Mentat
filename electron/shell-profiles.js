@@ -4,6 +4,7 @@ const path = require('path');
 const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { isRunningInWSL } = require('./helpers');
+const { log } = require('./logger');
 
 function getShellProfiles() {
   if (process.platform === 'win32') {
@@ -14,13 +15,13 @@ function getShellProfiles() {
     try {
       execFileSync('pwsh.exe', ['--version'], { encoding: 'utf8', timeout: 5_000 });
       profiles.unshift({ id: 'pwsh', name: 'PowerShell 7', cmd: 'pwsh.exe', args: ['-NoLogo'] });
-    } catch {}
+    } catch (e) { log('INFO', 'pwsh.exe not available:', e.message); }
     try {
       const out = execFileSync('wsl.exe', ['--list', '--quiet'], { encoding: 'utf16le' });
       out.split('\n').map(s => s.replace(/\0/g, '').trim()).filter(Boolean).forEach(distro => {
         profiles.push({ id: `wsl:${distro}`, name: `WSL (${distro})`, wsl: true, distro });
       });
-    } catch {}
+    } catch (e) { log('INFO', 'WSL distro list failed:', e.message); }
     return profiles;
   }
 

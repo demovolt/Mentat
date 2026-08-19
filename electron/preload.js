@@ -2,6 +2,12 @@
 
 const { contextBridge, ipcRenderer, clipboard } = require('electron');
 
+const on = (channel) => (cb) => {
+  const handler = (_e, payload) => cb(payload);
+  ipcRenderer.on(channel, handler);
+  return () => ipcRenderer.removeListener(channel, handler);
+};
+
 contextBridge.exposeInMainWorld('api', {
   // Config
   getConfig: () => ipcRenderer.invoke('config:get'),
@@ -19,14 +25,8 @@ contextBridge.exposeInMainWorld('api', {
   getWorktrees: (p) => ipcRenderer.invoke('git:get-worktrees', p),
   createWorktree: (opts) => ipcRenderer.invoke('git:create-worktree', opts),
   removeWorktree: (opts) => ipcRenderer.invoke('git:remove-worktree', opts),
-  getPrunableWorktrees: (p) => ipcRenderer.invoke('git:get-prunable-worktrees', p),
   deleteBranch: (opts)  => ipcRenderer.invoke('git:delete-branch', opts),
   gitCurrentBranch: (p) => ipcRenderer.invoke('git:current-branch', p),
-  gitStatus:        (p) => ipcRenderer.invoke('git:status', p),
-  gitPull:          (p, branch) => ipcRenderer.invoke('git:pull', p, branch),
-  gitAdd:           (p, files)  => ipcRenderer.invoke('git:add', p, files),
-  gitCommit:        (p, msg)    => ipcRenderer.invoke('git:commit', p, msg),
-  gitPush:          (p, branch) => ipcRenderer.invoke('git:push', p, branch),
 
   // PTY
   createTerminal: (termId, worktreePath, shellId, type, aiCommand, sessionId) =>
@@ -37,31 +37,11 @@ contextBridge.exposeInMainWorld('api', {
     ipcRenderer.send('pty:resize', { termId, cols, rows }),
   closeTerminal: (termId) =>
     ipcRenderer.send('pty:close', { termId }),
-  onTerminalData: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('pty:data', handler);
-    return () => ipcRenderer.removeListener('pty:data', handler);
-  },
-  onWorktreeStatus: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('worktree:status-changed', handler);
-    return () => ipcRenderer.removeListener('worktree:status-changed', handler);
-  },
-  onWorktreeAgent: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('worktree:agent-changed', handler);
-    return () => ipcRenderer.removeListener('worktree:agent-changed', handler);
-  },
-  onTerminalExited: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('pty:exited', handler);
-    return () => ipcRenderer.removeListener('pty:exited', handler);
-  },
-  onSessionIdUpdated: (cb) => {
-    const handler = (_e, payload) => cb(payload);
-    ipcRenderer.on('session:id-updated', handler);
-    return () => ipcRenderer.removeListener('session:id-updated', handler);
-  },
+  onTerminalData:     on('pty:data'),
+  onWorktreeStatus:   on('worktree:status-changed'),
+  onWorktreeAgent:    on('worktree:agent-changed'),
+  onTerminalExited:   on('pty:exited'),
+  onSessionIdUpdated: on('session:id-updated'),
 
   // Clipboard (synchronous Electron API — navigator.clipboard is unreliable in renderer)
   clipboardRead: () => clipboard.readText(),

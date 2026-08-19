@@ -4,11 +4,6 @@ import TitleBar from '../../src/components/TitleBar.jsx';
 
 function renderBar(props = {}) {
   const defaults = {
-    activeWorktreePath: null,
-    onGit: vi.fn(),
-    repoPath: null,
-    onPrune: vi.fn(),
-    isPruning: false,
     onAddRepo: vi.fn(),
     onSettings: vi.fn(),
   };
@@ -31,51 +26,6 @@ describe('TitleBar', () => {
     renderBar({ onAddRepo });
     fireEvent.click(screen.getByText('Add Repository'));
     expect(onAddRepo).toHaveBeenCalledTimes(1);
-  });
-
-  it('Git button is disabled when no activeWorktreePath', () => {
-    renderBar({ activeWorktreePath: null });
-    expect(screen.getByText('Git').closest('button')).toBeDisabled();
-  });
-
-  it('Git button is enabled when activeWorktreePath is set', () => {
-    renderBar({ activeWorktreePath: '/repo/main' });
-    expect(screen.getByText('Git').closest('button')).not.toBeDisabled();
-  });
-
-  it('Git button calls onGit when clicked', () => {
-    const onGit = vi.fn();
-    renderBar({ activeWorktreePath: '/repo', onGit });
-    fireEvent.click(screen.getByText('Git'));
-    expect(onGit).toHaveBeenCalledTimes(1);
-  });
-
-  it('Prune button is disabled when no repoPath', () => {
-    renderBar({ repoPath: null });
-    expect(screen.getByText('Prune').closest('button')).toBeDisabled();
-  });
-
-  it('Prune button is disabled when isPruning is true', () => {
-    renderBar({ repoPath: '/repo', isPruning: true });
-    const btn = screen.getByText('…').closest('button');
-    expect(btn).toBeDisabled();
-  });
-
-  it('Prune button shows "…" text when isPruning', () => {
-    renderBar({ repoPath: '/repo', isPruning: true });
-    expect(screen.getByText('…')).toBeInTheDocument();
-  });
-
-  it('Prune button is enabled with repoPath and isPruning=false', () => {
-    renderBar({ repoPath: '/repo', isPruning: false });
-    expect(screen.getByText('Prune').closest('button')).not.toBeDisabled();
-  });
-
-  it('Prune button calls onPrune when clicked', () => {
-    const onPrune = vi.fn();
-    renderBar({ repoPath: '/repo', onPrune });
-    fireEvent.click(screen.getByText('Prune'));
-    expect(onPrune).toHaveBeenCalledTimes(1);
   });
 
   it('Settings button calls onSettings when clicked', () => {

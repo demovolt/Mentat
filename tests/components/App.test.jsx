@@ -129,7 +129,7 @@ describe('App', () => {
       await user.click(screen.getByText('Add Repository'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Git-репозиторий не найден/)).toBeInTheDocument();
+        expect(screen.getByText(/Git repository not found/)).toBeInTheDocument();
       });
     });
 
@@ -203,13 +203,13 @@ describe('App', () => {
       await user.click(screen.getByText('Add Repository'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Git-репозиторий не найден/)).toBeInTheDocument();
+        expect(screen.getByText(/Git repository not found/)).toBeInTheDocument();
       });
 
       // Click error banner to dismiss
-      fireEvent.click(screen.getByText(/Git-репозиторий не найден/));
+      fireEvent.click(screen.getByText(/Git repository not found/));
       await waitFor(() => {
-        expect(screen.queryByText(/Git-репозиторий не найден/)).not.toBeInTheDocument();
+        expect(screen.queryByText(/Git repository not found/)).not.toBeInTheDocument();
       });
     });
   });
@@ -272,64 +272,298 @@ describe('App', () => {
     });
   });
 
-  describe('handleCheckPrune', () => {
-    it('prune button opens PruneConfirmModal when prunable worktrees found', async () => {
-      window.api.getConfig.mockResolvedValue({
-        workspace: [sampleRepo],
-        aiCommand: 'claude',
-        settings: null,
-      });
+  describe('Window controls', () => {
+    it('Minimize button calls window.api.minimize', async () => {
+      render(<App />);
+      await waitFor(() => screen.getByTitle('Minimize'));
+      fireEvent.click(screen.getByTitle('Minimize'));
+      expect(window.api.minimize).toHaveBeenCalled();
+    });
+
+    it('Maximize button calls window.api.toggleMaximize', async () => {
+      render(<App />);
+      await waitFor(() => screen.getByTitle('Maximize'));
+      fireEvent.click(screen.getByTitle('Maximize'));
+      expect(window.api.toggleMaximize).toHaveBeenCalled();
+    });
+
+    it('Close button calls window.api.close', async () => {
+      render(<App />);
+      await waitFor(() => screen.getByTitle('Close'));
+      fireEvent.click(screen.getByTitle('Close'));
+      expect(window.api.close).toHaveBeenCalled();
+    });
+  });
+
+  describe('New worktree workflow', () => {
+    beforeEach(() => {
+      window.api.getConfig.mockResolvedValue({ workspace: [sampleRepo], aiCommand: 'claude', settings: null });
       window.api.getWorktrees.mockResolvedValue(sampleWorktrees);
       window.api.gitCurrentBranch.mockResolvedValue('main');
-      window.api.getPrunableWorktrees.mockResolvedValue({
-        success: true,
-        worktrees: [{ path: '/repo/old', branch: 'feature/old' }],
-      });
+    });
 
-      const user = userEvent.setup();
+    async function openNewWorktreeModal() {
       render(<App />);
-
-      // First select a worktree to set activeWorktreePath
       await waitFor(() => screen.getByText('myrepo-feat'));
-      await user.click(screen.getByText('myrepo-feat'));
+      const header = screen.getByTitle(sampleRepo.path).closest('div[class*="flex"]');
+      fireEvent.mouseEnter(header);
+      await waitFor(() => screen.getByTitle('New Worktree'));
+      fireEvent.click(screen.getByTitle('New Worktree'));
+      await waitFor(() => screen.getByPlaceholderText('feature/my-feature'));
+    }
 
-      // Now click Prune
+    it('clicking New Worktree opens NewWorktreeModal', async () => {
+      await openNewWorktreeModal();
+      expect(screen.getByPlaceholderText('feature/my-feature')).toBeInTheDocument();
+    });
+
+    it('Escape closes NewWorktreeModal without API call', async () => {
+      const user = userEvent.setup();
+      await openNewWorktreeModal();
+      await user.keyboard('{Escape}');
       await waitFor(() => {
-        const pruneBtn = screen.getByText('Prune').closest('button');
-        expect(pruneBtn).not.toBeDisabled();
+        expect(screen.queryByPlaceholderText('feature/my-feature')).not.toBeInTheDocument();
       });
-      await user.click(screen.getByText('Prune'));
+      expect(window.api.createWorktree).not.toHaveBeenCalled();
+    });
 
+    it('Cancel button closes NewWorktreeModal without API call', async () => {
+      const user = userEvent.setup();
+      await openNewWorktreeModal();
+      await user.click(screen.getByText('Cancel'));
       await waitFor(() => {
-        expect(screen.getByText(/Удалить воркфри смёрженных веток/)).toBeInTheDocument();
+        expect(screen.queryByPlaceholderText('feature/my-feature')).not.toBeInTheDocument();
+      });
+      expect(window.api.createWorktree).not.toHaveBeenCalled();
+    });
+
+    it('filling branch and clicking Create calls createWorktree with correct args', async () => {
+      const user = userEvent.setup();
+      window.api.createWorktree.mockResolvedValue({ success: true, worktreePath: '/home/user/myrepo-newbranch' });
+      await openNewWorktreeModal();
+      await user.type(screen.getByPlaceholderText('feature/my-feature'), 'new-branch');
+      await user.click(screen.getByText('Create'));
+      await waitFor(() => {
+        expect(window.api.createWorktree).toHaveBeenCalledWith(
+          expect.objectContaining({ repoPath: sampleRepo.path, branch: 'new-branch' })
+        );
       });
     });
 
-    it('shows error when no prunable worktrees', async () => {
-      window.api.getConfig.mockResolvedValue({
-        workspace: [sampleRepo],
-        aiCommand: 'claude',
-        settings: null,
+    it('after successful create the new worktree appears in the sidebar', async () => {
+      const user = userEvent.setup();
+      const newWorktrees = [
+        ...sampleWorktrees,
+        { path: '/home/user/myrepo-newbranch', branch: 'new-branch', head: 'ghi' },
+      ];
+      window.api.createWorktree.mockResolvedValue({ success: true, worktreePath: '/home/user/myrepo-newbranch' });
+      window.api.getWorktrees
+        .mockResolvedValueOnce(sampleWorktrees)
+        .mockResolvedValue(newWorktrees);
+
+      await openNewWorktreeModal();
+      await user.type(screen.getByPlaceholderText('feature/my-feature'), 'new-branch');
+      await user.click(screen.getByText('Create'));
+      // The custom name (sanitized branch name) is shown as the display name in the sidebar
+      await waitFor(() => {
+        expect(screen.getAllByText('new-branch').length).toBeGreaterThan(0);
       });
+    });
+
+    it('failed create shows error banner', async () => {
+      const user = userEvent.setup();
+      window.api.createWorktree.mockResolvedValue({ success: false, error: 'Branch already exists' });
+      await openNewWorktreeModal();
+      await user.type(screen.getByPlaceholderText('feature/my-feature'), 'existing-branch');
+      await user.click(screen.getByText('Create'));
+      await waitFor(() => {
+        expect(screen.getByText('Branch already exists')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Terminal tab management', () => {
+    beforeEach(() => {
+      window.api.getConfig.mockResolvedValue({ workspace: [sampleRepo], aiCommand: 'claude', settings: null });
       window.api.getWorktrees.mockResolvedValue(sampleWorktrees);
       window.api.gitCurrentBranch.mockResolvedValue('main');
-      window.api.getPrunableWorktrees.mockResolvedValue({
-        success: true,
-        worktrees: [],
-      });
+    });
 
+    it('selecting a worktree auto-creates an AI terminal tab', async () => {
       const user = userEvent.setup();
       render(<App />);
       await waitFor(() => screen.getByText('myrepo-feat'));
       await user.click(screen.getByText('myrepo-feat'));
       await waitFor(() => {
-        const pruneBtn = screen.getByText('Prune').closest('button');
-        expect(pruneBtn).not.toBeDisabled();
+        expect(screen.getByText('Claude 1')).toBeInTheDocument();
       });
-      await user.click(screen.getByText('Prune'));
+    });
+
+    it('clicking + Term creates a shell terminal tab', async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await user.click(screen.getByText('myrepo-feat'));
+      // Claude 1 is auto-created (index 0), so the shell tab is num=2
+      await waitFor(() => screen.getByTitle('New terminal'));
+      await user.click(screen.getByTitle('New terminal'));
+      await waitFor(() => {
+        expect(screen.getByText('Terminal 2')).toBeInTheDocument();
+      });
+    });
+
+    it('clicking + AI creates a second AI terminal tab', async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await user.click(screen.getByText('myrepo-feat'));
+      await waitFor(() => screen.getByText('+ AI'));
+      await user.click(screen.getByText('+ AI'));
+      await waitFor(() => {
+        expect(screen.getByText('Claude 2')).toBeInTheDocument();
+      });
+    });
+
+    it('+ AI and + Term buttons are disabled when 3 tabs exist', async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await user.click(screen.getByText('myrepo-feat'));
+      // Claude 1 is auto-created; add 2 more to reach the limit of 3
+      await waitFor(() => screen.getByTitle('New terminal'));
+      await user.click(screen.getByTitle('New terminal'));
+      await waitFor(() => screen.getByText('Terminal 2'));
+      await user.click(screen.getByText('+ AI'));
+      await waitFor(() => screen.getByText('Claude 2'));
+      // Now at 3 tabs — buttons should be disabled
+      expect(screen.getByText('+ AI').closest('button')).toBeDisabled();
+      expect(screen.getByTitle('New terminal')).toBeDisabled();
+    });
+
+    it('closing a tab removes it from the tab bar', async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await user.click(screen.getByText('myrepo-feat'));
+      await waitFor(() => screen.getByTitle('New terminal'));
+      await user.click(screen.getByTitle('New terminal'));
+      await waitFor(() => screen.getByText('Terminal 2'));
+      // Close Terminal 2
+      const closeButtons = screen.getAllByText('×');
+      await user.click(closeButtons[closeButtons.length - 1]);
+      await waitFor(() => {
+        expect(screen.queryByText('Terminal 2')).not.toBeInTheDocument();
+      });
+    });
+
+    it('switching worktrees shows tabs for each worktree independently', async () => {
+      const user = userEvent.setup();
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      // Select first worktree (myrepo) – it appears twice so use last occurrence
+      const myrepoItems = screen.getAllByText('myrepo');
+      await user.click(myrepoItems[myrepoItems.length - 1]);
+      await waitFor(() => screen.getByText('Claude 1'));
+      // Add a shell tab to myrepo (Claude 1 is already index 0, so shell becomes Terminal 2)
+      await user.click(screen.getByTitle('New terminal'));
+      await waitFor(() => screen.getByText('Terminal 2'));
+      // Switch to myrepo-feat
+      await user.click(screen.getByText('myrepo-feat'));
+      await waitFor(() => {
+        // myrepo-feat gets its own Claude 1; Terminal 2 from myrepo is not shown
+        expect(screen.getAllByText('Claude 1').length).toBe(1);
+        expect(screen.queryByText('Terminal 2')).not.toBeInTheDocument();
+      });
+      // Switch back to myrepo – Terminal 2 is still there
+      const myrepoItems2 = screen.getAllByText('myrepo');
+      await user.click(myrepoItems2[myrepoItems2.length - 1]);
+      await waitFor(() => {
+        expect(screen.getByText('Terminal 2')).toBeInTheDocument();
+      });
+    });
+  });
+
+  describe('Worktree deletion', () => {
+    beforeEach(() => {
+      window.api.getConfig.mockResolvedValue({ workspace: [sampleRepo], aiCommand: 'claude', settings: null });
+      window.api.getWorktrees.mockResolvedValue(sampleWorktrees);
+      window.api.gitCurrentBranch.mockResolvedValue('main');
+    });
+
+    function openWorktreeContextMenu() {
+      const item = screen.getByText('myrepo-feat').closest('[class*="relative"]');
+      fireEvent.mouseEnter(item);
+      const dotsBtn = screen.getByText('•••');
+      fireEvent.click(dotsBtn);
+    }
+
+    async function openDeleteSubmenu() {
+      openWorktreeContextMenu();
+      await waitFor(() => screen.getByText(/Delete/));
+      const deleteWrapper = screen.getByText(/Delete/).closest('.relative');
+      fireEvent.mouseEnter(deleteWrapper);
+      await waitFor(() => screen.getByText('Worktree'));
+    }
+
+    it('clicking Worktree option calls removeWorktree and removes worktree from sidebar', async () => {
+      window.api.getWorktrees
+        .mockResolvedValueOnce(sampleWorktrees)
+        .mockResolvedValue([sampleWorktrees[0]]);
+
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await openDeleteSubmenu();
+      fireEvent.click(screen.getByText('Worktree'));
 
       await waitFor(() => {
-        expect(screen.getByText(/Нет смёрженных веток/)).toBeInTheDocument();
+        expect(window.api.removeWorktree).toHaveBeenCalledWith({
+          repoPath: sampleRepo.path,
+          worktreePath: sampleWorktrees[1].path,
+        });
+      });
+      await waitFor(() => {
+        expect(screen.queryByText('myrepo-feat')).not.toBeInTheDocument();
+      });
+    });
+
+    it('clicking Worktree + branch option calls both removeWorktree and deleteBranch', async () => {
+      window.api.getWorktrees
+        .mockResolvedValueOnce(sampleWorktrees)
+        .mockResolvedValue([sampleWorktrees[0]]);
+
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      await openDeleteSubmenu();
+      fireEvent.click(screen.getByText('Worktree + branch'));
+
+      await waitFor(() => {
+        expect(window.api.removeWorktree).toHaveBeenCalledWith({
+          repoPath: sampleRepo.path,
+          worktreePath: sampleWorktrees[1].path,
+        });
+        expect(window.api.deleteBranch).toHaveBeenCalledWith({
+          repoPath: sampleRepo.path,
+          branch: sampleWorktrees[1].branch,
+        });
+      });
+    });
+
+    it('deleting the active worktree resets the terminal area to placeholder', async () => {
+      const user = userEvent.setup();
+      window.api.getWorktrees
+        .mockResolvedValueOnce(sampleWorktrees)
+        .mockResolvedValue([sampleWorktrees[0]]);
+
+      render(<App />);
+      await waitFor(() => screen.getByText('myrepo-feat'));
+      // Activate myrepo-feat first
+      await user.click(screen.getByText('myrepo-feat'));
+      await waitFor(() => screen.getByText('Claude 1'));
+      // Delete the active worktree
+      await openDeleteSubmenu();
+      fireEvent.click(screen.getByText('Worktree'));
+      await waitFor(() => {
+        expect(screen.getByText(/Select a worktree/)).toBeInTheDocument();
       });
     });
   });

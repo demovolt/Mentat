@@ -11,7 +11,7 @@ function Section({ label, children }) {
   );
 }
 
-export default function GeneralTab({ settings, set }) {
+export default function GeneralTab({ settings, set, shellProfiles = [] }) {
   const [logPath, setLogPath] = useState('');
 
   useEffect(() => {
@@ -39,6 +39,21 @@ export default function GeneralTab({ settings, set }) {
           ))}
         </div>
       </Section>
+
+      {shellProfiles.length > 0 && (
+        <Section label="Default Terminal">
+          <select
+            value={settings.defaultShellId ?? ''}
+            onChange={(e) => set('defaultShellId', e.target.value || null)}
+            className="bg-[#0f0f0f] border border-[#222] rounded-lg text-[13px] text-[#ccc] px-3 py-1.5 focus:outline-none focus:border-[#444]"
+          >
+            <option value="">System (auto)</option>
+            {shellProfiles.map(p => (
+              <option key={p.id} value={p.id}>{p.name}</option>
+            ))}
+          </select>
+        </Section>
+      )}
 
       <Section label="Logging">
         <div className="flex flex-col items-end gap-1.5">

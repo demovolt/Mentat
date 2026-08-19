@@ -1,7 +1,13 @@
 import { useState, useEffect, useRef } from 'react';
 
+const sanitize = (s) => s.replace(/\//g, '-').replace(/[^a-zA-Z0-9._-]/g, '_');
+
 export default function NewWorktreeModal({ onCreate, onClose }) {
   const [branch, setBranch] = useState('');
+  const [worktreeName, setWorktreeName] = useState('');
+  const [customName, setCustomName] = useState('');
+  const worktreeNameTouched = useRef(false);
+  const customNameTouched = useRef(false);
   const inputRef = useRef(null);
 
   useEffect(() => {
@@ -14,11 +20,39 @@ export default function NewWorktreeModal({ onCreate, onClose }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [onClose]);
 
+  const handleBranchChange = (val) => {
+    setBranch(val);
+    const safe = sanitize(val.trim());
+    if (!worktreeNameTouched.current) {
+      setWorktreeName(safe);
+      if (!customNameTouched.current) setCustomName(safe);
+    } else if (!customNameTouched.current) {
+      setCustomName(safe);
+    }
+  };
+
+  const handleWorktreeNameChange = (val) => {
+    worktreeNameTouched.current = true;
+    setWorktreeName(val);
+    if (!customNameTouched.current) setCustomName(val);
+  };
+
+  const handleCustomNameChange = (val) => {
+    customNameTouched.current = true;
+    setCustomName(val);
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!branch.trim()) return;
-    onCreate({ branch: branch.trim() });
+    onCreate({
+      branch: branch.trim(),
+      worktreeName: worktreeName.trim() || undefined,
+      customName: customName.trim() || undefined,
+    });
   };
+
+  const inputClass = "w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-[14px] text-white placeholder-[#444] focus:outline-none focus:border-[#7c3aed] transition-colors";
 
   return (
     <div
@@ -38,9 +72,31 @@ export default function NewWorktreeModal({ onCreate, onClose }) {
               ref={inputRef}
               type="text"
               value={branch}
-              onChange={(e) => setBranch(e.target.value)}
+              onChange={(e) => handleBranchChange(e.target.value)}
               placeholder="feature/my-feature"
-              className="w-full bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-2 text-[14px] text-white placeholder-[#444] focus:outline-none focus:border-[#7c3aed] transition-colors"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] text-[#666] mb-1">Worktree folder name</label>
+            <input
+              type="text"
+              value={worktreeName}
+              onChange={(e) => handleWorktreeNameChange(e.target.value)}
+              placeholder="feature-my-feature"
+              className={inputClass}
+            />
+          </div>
+
+          <div>
+            <label className="block text-[12px] text-[#666] mb-1">Mentat name</label>
+            <input
+              type="text"
+              value={customName}
+              onChange={(e) => handleCustomNameChange(e.target.value)}
+              placeholder="feature-my-feature"
+              className={inputClass}
             />
           </div>
 
