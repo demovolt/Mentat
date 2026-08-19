@@ -2,28 +2,28 @@
   "description": "mentat",
   "hooks": {
     "session_start": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 session_start" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 session_start" }
     ],
     "session_end": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 session_stop" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 session_stop" }
     ],
     "user_prompt_submit": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 thinking" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 thinking" }
     ],
     "pre_tool_use": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 working" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 working" }
     ],
     "post_tool_use": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 thinking" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 thinking" }
     ],
     "stop": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 idle" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 idle" }
     ],
     "subagent_start": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 agent_start" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 agent_start" }
     ],
     "subagent_stop": [
-      { "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.codex\\mentat-hook.ps1 agent_stop" }
+      { "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 agent_stop" }
     ]
   }
 }

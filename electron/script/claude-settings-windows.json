@@ -3,40 +3,40 @@
     "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 session_start" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 session_start" }
         ]
       }
     ],
     "SessionEnd": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 session_stop" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 session_stop" }
         ]
       }
     ],
     "UserPromptSubmit": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 thinking" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 thinking" }
         ]
       }
     ],
     "PreToolUse": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 working" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 working" }
         ]
       },
       {
         "matcher": "AskUserQuestion",
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 waiting" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 waiting" }
         ]
       },
       {
         "matcher": "Agent",
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 agent_start" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 agent_start" }
         ]
       }
     ],
@@ -44,21 +44,21 @@
       {
         "matcher": "Agent",
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 agent_stop" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 agent_stop" }
         ]
       }
     ],
     "Notification": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 waiting" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 waiting" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File %USERPROFILE%\\.claude\\mentat-hook.ps1 idle" }
+          { "type": "command", "command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 idle" }
         ]
       }
     ]

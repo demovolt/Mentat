@@ -4,7 +4,7 @@
 
 1. [Project Overview](#1-project-overview)
 2. [How Mentat Communicates with Claude and Codex](#2-how-mentat-communicates-with-claude-and-codex)
-3. [Setting Up Claude / Codex + Mentat from Scratch](#3-setting-up-claude--codex--mentat-from-scratch)
+3. [Setting Up Mentat](#3-setting-up-mentat)
 
 ---
 
@@ -143,37 +143,9 @@ On Windows + WSL, these variables are forwarded into the WSL environment using `
 
 ---
 
-## 3. Setting Up Claude / Codex + Mentat from Scratch
+## 3. Setting Up Mentat
 
-This section walks through a complete setup on a fresh machine.
-
-### Prerequisites
-
-**Required on all platforms:**
-- **Git** — [git-scm.com](https://git-scm.com)
-- **Node.js 18+** — [nodejs.org](https://nodejs.org) (check with `node --version`)
-- An **Anthropic API key** (for Claude) or **OpenAI API key** (for Codex)
-
-**Required for Claude Code:**
-```bash
-npm install -g @anthropic-ai/claude-code
-```
-Verify: `claude --version`
-
-**Required for Codex:**
-```bash
-npm install -g @openai/codex
-```
-Verify: `codex --version`
-
-**Windows users (strongly recommended):**
-- Install **WSL 2** with Ubuntu: open PowerShell as Administrator and run:
-  ```powershell
-  wsl --install
-  ```
-- Then install Node.js and the AI CLI tools inside WSL (Ubuntu), not on Windows directly.
-
----
+This guide assumes you already have Claude Code and/or Codex installed and configured.
 
 ### Step 1 — Install Mentat
 
@@ -201,31 +173,7 @@ The packaged output appears in the `release/` directory.
 
 ---
 
-### Step 2 — Configure Your API Key
-
-**For Claude Code:**
-
-```bash
-# Option 1: Log in interactively (recommended)
-claude login
-
-# Option 2: Set the environment variable
-export ANTHROPIC_API_KEY=sk-ant-...
-```
-
-Add the export to your `~/.bashrc` or `~/.zshrc` to make it permanent.
-
-**For Codex:**
-
-```bash
-export OPENAI_API_KEY=sk-...
-```
-
-Add to `~/.bashrc` or `~/.zshrc`.
-
----
-
-### Step 3 — Install the Mentat Hook Script
+### Step 2 — Install the Mentat Hook Script
 
 Mentat's status integration requires a small hook script that Claude and Codex call during their lifecycle events. You install it once; it then works across all projects automatically.
 
@@ -233,12 +181,12 @@ The hook scripts are bundled inside the Mentat app:
 
 | Platform | Script in app |
 |---|---|
-| Linux / macOS | `resources/app/electron/script/mentat-hook.sh` |
-| Windows | `resources/app/electron/script/mentat-hook.ps1` |
+| Linux / macOS / WSL | `resources/app/electron/script/mentat-hook.sh` |
+| Windows (native) | `resources/app/electron/script/mentat-hook.ps1` |
 
 When building from source, the scripts are at `electron/script/mentat-hook.sh` (or `.ps1`).
 
-#### Linux / macOS
+#### Linux / macOS / WSL
 
 ```bash
 # Create target directories
@@ -252,7 +200,7 @@ cp /path/to/mentat/electron/script/mentat-hook.sh ~/.codex/mentat-hook.sh
 chmod +x ~/.claude/mentat-hook.sh ~/.codex/mentat-hook.sh
 ```
 
-#### Windows (PowerShell)
+#### Windows (native, PowerShell)
 
 ```powershell
 # Create target directories
@@ -264,170 +212,155 @@ Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$en
 Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$env:USERPROFILE\.codex\mentat-hook.ps1"
 ```
 
-#### Windows + WSL
-
-Copy the `.sh` script inside your WSL environment (same as Linux above), and the `.ps1` script on the Windows side if you also run native Windows PowerShell terminals.
-
 ---
 
-### Step 4 — Register the Hook with Claude Code
+### Step 3 — Register the Hook with Claude Code
 
-Claude Code calls registered hooks at specific lifecycle points. Add the following to `~/.claude/settings.json` (create the file if it doesn't exist):
+Claude Code calls registered hooks at specific lifecycle points. Ready-to-use example configs are included in the app:
+
+| Platform | Example config |
+|---|---|
+| Linux / macOS / WSL | `resources/app/electron/script/claude-settings-linux.json` |
+| Windows (native) | `resources/app/electron/script/claude-settings-windows.json` |
+
+**Linux / macOS / WSL** — add the contents to `~/.claude/settings.json`:
 
 ```json
 {
   "hooks": {
-    "Notification": [
+    "SessionStart": [
       {
         "hooks": [
-          { "type": "command", "command": "~/.claude/mentat-hook.sh session_start" }
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh session_start" }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh session_stop" }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh thinking" }
         ]
       }
     ],
     "PreToolUse": [
       {
         "hooks": [
-          { "type": "command", "command": "~/.claude/mentat-hook.sh working" }
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh working" }
+        ]
+      },
+      {
+        "matcher": "AskUserQuestion",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh waiting" }
+        ]
+      },
+      {
+        "matcher": "Agent",
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh agent_start" }
         ]
       }
     ],
     "PostToolUse": [
       {
+        "matcher": "Agent",
         "hooks": [
-          { "type": "command", "command": "~/.claude/mentat-hook.sh thinking" }
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh agent_stop" }
+        ]
+      }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh waiting" }
         ]
       }
     ],
     "Stop": [
       {
         "hooks": [
-          { "type": "command", "command": "~/.claude/mentat-hook.sh idle" }
-        ]
-      }
-    ],
-    "SubagentStop": [
-      {
-        "hooks": [
-          { "type": "command", "command": "~/.claude/mentat-hook.sh agent_stop" }
+          { "type": "command", "command": "bash ~/.claude/mentat-hook.sh idle" }
         ]
       }
     ]
   }
 }
 ```
+
+**Windows (native)** — use the same structure but replace each command with:
+```
+powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 <action>
+```
+where `PATH_TO_CLAUDE` is the full path to your `.claude` folder (e.g. `C:/Users/User/.claude`). See `claude-settings-windows.json` for the complete example.
 
 If you already have a `settings.json` with other hooks, merge the `hooks` object rather than replacing the whole file.
 
-> **Windows (PowerShell):** Replace `~/.claude/mentat-hook.sh` with the full path to `mentat-hook.ps1` and prefix the command with `powershell -File`.
-
 ---
 
-### Step 5 — Register the Hook with Codex
+### Step 4 — Register the Hook with Codex
 
-Codex reads its hooks from `~/.codex/hooks.json`. Create or update that file:
+Codex reads its hooks from `~/.codex/hooks.json`. Ready-to-use example configs are included in the app:
+
+| Platform | Example config |
+|---|---|
+| Linux / macOS / WSL | `resources/app/electron/script/codex-hooks-linux.json` |
+| Windows (native) | `resources/app/electron/script/codex-hooks-windows.json` |
+
+**Linux / macOS / WSL** — create or update `~/.codex/hooks.json`:
 
 ```json
 {
+  "description": "mentat",
   "hooks": {
-    "PreToolUse": [
-      { "command": "~/.codex/mentat-hook.sh working" }
+    "session_start": [
+      { "command": "bash ~/.codex/mentat-hook.sh session_start" }
     ],
-    "Stop": [
-      { "command": "~/.codex/mentat-hook.sh idle" }
+    "session_end": [
+      { "command": "bash ~/.codex/mentat-hook.sh session_stop" }
+    ],
+    "user_prompt_submit": [
+      { "command": "bash ~/.codex/mentat-hook.sh thinking" }
+    ],
+    "pre_tool_use": [
+      { "command": "bash ~/.codex/mentat-hook.sh working" }
+    ],
+    "post_tool_use": [
+      { "command": "bash ~/.codex/mentat-hook.sh thinking" }
+    ],
+    "stop": [
+      { "command": "bash ~/.codex/mentat-hook.sh idle" }
+    ],
+    "subagent_start": [
+      { "command": "bash ~/.codex/mentat-hook.sh agent_start" }
+    ],
+    "subagent_stop": [
+      { "command": "bash ~/.codex/mentat-hook.sh agent_stop" }
     ]
   }
 }
 ```
 
----
-
-### Step 6 — Launch Mentat
-
-1. Start `Mentat.exe` (Windows) or `Mentat.AppImage` (Linux) or open the macOS app
-
-2. On first launch, Mentat automatically:
-   - Starts the status server on port **27182**
-   - On Windows: adds a firewall rule for port 27182
-
-3. Open **Settings → Connection** to verify the setup:
-   - **Status Server** shows green if the server is reachable
-   - **Scripts** section shows a ✓ or ✗ next to each expected hook file
+**Windows (native)** — use the same structure but replace each command with:
+```
+powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 <action>
+```
+where `PATH_TO_CODEX` is the full path to your `.codex` folder (e.g. `C:/Users/User/.codex`). See `codex-hooks-windows.json` for the complete example.
 
 ---
 
-### Step 7 — Add a Repository
+### Step 5 — Launch Mentat
 
-1. Click the **"+"** button in the top toolbar
-2. Select the root folder of a Git repository
-3. Mentat will detect the repository and load all existing branches and worktrees into the sidebar
-
----
-
-### Step 8 — Open a Terminal
-
-Click on any worktree in the sidebar to select it, then:
-
-- **Regular shell terminal** — click the terminal icon to open a shell tab in that worktree's directory
-- **AI terminal** — click the AI button (Claude/Codex icon) to open an AI session tab
-
-The terminal opens pre-configured with the correct working directory and with `MENTAT_TERM_ID` already set.
-
----
-
-### Step 9 — Work with Claude or Codex
-
-**In an AI terminal:**
-
-The AI launches automatically. You can interact with it directly through the terminal. The sidebar shows a live status indicator for each terminal:
-
-| Indicator | Meaning |
-|---|---|
-| `idle` | AI is ready, waiting for your message |
-| `thinking` | AI is processing between tool calls |
-| `working` | AI is executing a tool (reading/writing files, running commands) |
-| `waiting` | AI needs input from you |
-
-**Session resumption:**
-
-If you close an AI terminal and click the AI button again, Mentat automatically resumes the previous conversation. You do not need to do anything — the `--resume` flag is added behind the scenes using the session ID captured at startup.
-
-**In a shell terminal:**
-
-You can still type `claude` or `codex` manually. The hooks registered in Steps 4–5 are active globally, so Mentat will track the session status automatically as long as `MENTAT_TERM_ID` is set (which it is in every Mentat terminal).
-
----
-
-### Step 10 — Manage Worktrees
-
-**Create a new worktree (new branch):**
-
-1. Right-click a repository in the sidebar (or use the "+" worktree button)
-2. Enter the new branch name
-3. Select a base branch
-4. Click **Create** — the new worktree folder is created and appears in the sidebar immediately
-
-**Remove a worktree:**
-
-Right-click the worktree in the sidebar and select **Remove**. This deletes the worktree directory. The branch itself is preserved unless you also choose to delete it.
-
-**Prune merged branches:**
-
-Click the **Prune** button in the toolbar. Mentat scans for worktrees whose branches have been merged into the main branch and lists them for removal.
-
----
-
-### Step 11 — Adjust Settings
-
-Click the **Settings** (gear) icon in the toolbar:
-
-| Setting | Description |
-|---|---|
-| **AI Command** | Choose `claude` or `codex` as the default for AI terminals |
-| **Logging** | Enable to write a `mentat.log` file for debugging |
-| **Console Font** | Font family used in all terminals |
-| **Console Font Size** | Font size in pixels |
-
-The **Connection** tab lets you verify that the hook scripts are installed and the status server is running.
+1. Start `Mentat.exe` (Windows), `Mentat.AppImage` (Linux), or open the macOS app
+2. Open **Settings → Connection** — make sure the status server is green and hook scripts are marked ✓
+3. Click **"+"** in the toolbar and add a Git repository
+4. Select a worktree in the sidebar and open an AI terminal — Claude or Codex button
 
 ---
 
