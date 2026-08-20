@@ -8,6 +8,8 @@ on:
 jobs:
   release-linux:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -21,12 +23,15 @@ jobs:
 
   release-windows:
     runs-on: windows-latest
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: npm
+      - run: npm config set msvs_version 2022
       - run: npm ci
       - run: npm run package:win
         env:
