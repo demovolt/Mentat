@@ -33,14 +33,14 @@ Output appears in the `release/` directory.
 ## Step 2 — Install the hook script
 
 Scripts are located in:
-- `electron/script/` — when building from source
-- `resources/app/electron/script/` — in the pre-built app
+- `script/` — when building from source
+- `resources/app/script/` — in the pre-built app
 
 **Linux / macOS / WSL**
 
 ```bash
-cp /path/to/mentat/electron/script/mentat-hook.sh ~/.claude/mentat-hook.sh
-cp /path/to/mentat/electron/script/mentat-hook.sh ~/.codex/mentat-hook.sh
+cp /path/to/mentat/script/mentat-hook.sh ~/.claude/mentat-hook.sh
+cp /path/to/mentat/script/mentat-hook.sh ~/.codex/mentat-hook.sh
 chmod +x ~/.claude/mentat-hook.sh ~/.codex/mentat-hook.sh
 ```
 
@@ -59,8 +59,8 @@ Ready-to-use configs are included in the app:
 
 | Platform | File |
 |---|---|
-| Linux / macOS / WSL | `electron/script/claude-settings-linux.json` |
-| Windows | `electron/script/claude-settings-windows.json` |
+| Linux / macOS / WSL | `script/claude-settings-linux.json` |
+| Windows | `script/claude-settings-windows.json` |
 
 Copy the contents into `~/.claude/settings.json`.
 
@@ -76,8 +76,8 @@ Ready-to-use configs are included in the app:
 
 | Platform | File |
 |---|---|
-| Linux / macOS / WSL | `electron/script/codex-hooks-linux.json` |
-| Windows | `electron/script/codex-hooks-windows.json` |
+| Linux / macOS / WSL | `script/codex-hooks-linux.json` |
+| Windows | `script/codex-hooks-windows.json` |
 
 Copy the contents into `~/.codex/hooks.json`.
 

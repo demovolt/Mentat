@@ -181,10 +181,10 @@ The hook scripts are bundled inside the Mentat app:
 
 | Platform | Script in app |
 |---|---|
-| Linux / macOS / WSL | `resources/app/electron/script/mentat-hook.sh` |
-| Windows (native) | `resources/app/electron/script/mentat-hook.ps1` |
+| Linux / macOS / WSL | `resources/app/script/mentat-hook.sh` |
+| Windows (native) | `resources/app/script/mentat-hook.ps1` |
 
-When building from source, the scripts are at `electron/script/mentat-hook.sh` (or `.ps1`).
+When building from source, the scripts are at `script/mentat-hook.sh` (or `.ps1`).
 
 #### Linux / macOS / WSL
 
@@ -193,8 +193,8 @@ When building from source, the scripts are at `electron/script/mentat-hook.sh` (
 mkdir -p ~/.claude ~/.codex
 
 # Copy the hook script (adjust the source path to match your Mentat installation)
-cp /path/to/mentat/electron/script/mentat-hook.sh ~/.claude/mentat-hook.sh
-cp /path/to/mentat/electron/script/mentat-hook.sh ~/.codex/mentat-hook.sh
+cp /path/to/mentat/script/mentat-hook.sh ~/.claude/mentat-hook.sh
+cp /path/to/mentat/script/mentat-hook.sh ~/.codex/mentat-hook.sh
 
 # Make executable
 chmod +x ~/.claude/mentat-hook.sh ~/.codex/mentat-hook.sh
@@ -208,8 +208,8 @@ New-Item -ItemType Directory -Force "$env:USERPROFILE\.claude"
 New-Item -ItemType Directory -Force "$env:USERPROFILE\.codex"
 
 # Copy the hook script
-Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$env:USERPROFILE\.claude\mentat-hook.ps1"
-Copy-Item "C:\path\to\mentat\resources\app\electron\script\mentat-hook.ps1" "$env:USERPROFILE\.codex\mentat-hook.ps1"
+Copy-Item "C:\path\to\mentat\resources\app\script\mentat-hook.ps1" "$env:USERPROFILE\.claude\mentat-hook.ps1"
+Copy-Item "C:\path\to\mentat\resources\app\script\mentat-hook.ps1" "$env:USERPROFILE\.codex\mentat-hook.ps1"
 ```
 
 ---
@@ -220,8 +220,8 @@ Claude Code calls registered hooks at specific lifecycle points. Ready-to-use ex
 
 | Platform | Example config |
 |---|---|
-| Linux / macOS / WSL | `resources/app/electron/script/claude-settings-linux.json` |
-| Windows (native) | `resources/app/electron/script/claude-settings-windows.json` |
+| Linux / macOS / WSL | `resources/app/script/claude-settings-linux.json` |
+| Windows (native) | `resources/app/script/claude-settings-windows.json` |
 
 **Linux / macOS / WSL** — add the contents to `~/.claude/settings.json`:
 
@@ -310,8 +310,8 @@ Codex reads its hooks from `~/.codex/hooks.json`. Ready-to-use example configs a
 
 | Platform | Example config |
 |---|---|
-| Linux / macOS / WSL | `resources/app/electron/script/codex-hooks-linux.json` |
-| Windows (native) | `resources/app/electron/script/codex-hooks-windows.json` |
+| Linux / macOS / WSL | `resources/app/script/codex-hooks-linux.json` |
+| Windows (native) | `resources/app/script/codex-hooks-windows.json` |
 
 **Linux / macOS / WSL** — create or update `~/.codex/hooks.json`:
 

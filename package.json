@@ -15,11 +15,11 @@
     "package:mac": "vite build && electron-builder --mac",
     "package:linux": "vite build && electron-builder --linux",
     "postinstall": "electron-builder install-app-deps",
-    "test": "vitest run --config vitest.config.renderer.js && vitest run --config vitest.config.main.js",
-    "test:watch": "vitest --config vitest.config.renderer.js",
-    "test:coverage": "vitest run --coverage",
-    "test:renderer": "vitest run --config vitest.config.renderer.js",
-    "test:main": "vitest run --config vitest.config.main.js",
+    "test": "vitest run --config tests/vitest.config.renderer.js && vitest run --config tests/vitest.config.main.js",
+    "test:watch": "vitest --config tests/vitest.config.renderer.js",
+    "test:coverage": "vitest run --coverage --workspace tests/vitest.workspace.js",
+    "test:renderer": "vitest run --config tests/vitest.config.renderer.js",
+    "test:main": "vitest run --config tests/vitest.config.main.js",
     "test:e2e": "playwright test"
   },
   "build": {
@@ -40,12 +40,18 @@
     ],
     "win": {
       "target": [
+        "nsis",
         "portable"
       ],
       "signAndEditExecutable": false
     },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "Mentat-Setup-${version}.${ext}"
+    },
     "portable": {
-      "artifactName": "Mentat-portable.${ext}"
+      "artifactName": "Mentat-portable-${version}.${ext}"
     },
     "mac": {
       "target": "dmg",
