@@ -33,8 +33,8 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - uses: ilammy/msvc-dev-cmd@v1
       - run: npm ci --ignore-scripts
-      - run: npm run package:win
+      - run: npm run build
+      - run: npx electron-builder --win --config.npmRebuild=false
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

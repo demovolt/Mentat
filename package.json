@@ -35,7 +35,6 @@
       "package.json"
     ],
     "asar": true,
-    "buildDependenciesFromSource": true,
     "asarUnpack": [
       "**/node_modules/node-pty/**"
     ],
