@@ -2,7 +2,7 @@
   
 # Mentat
 ### One interface. Many agents  
-![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey.svg)
 
 Mentat — an open source app for working with AI agents. Run Claude Code and Codex in parallel across multiple git worktrees, switch between sessions in tabs, and track the status of each agent — all in one window
 <img width="1689" height="950" alt="Mentat" src="https://github.com/user-attachments/assets/c77cd1e3-b249-4cca-af10-370779ed614e" />
