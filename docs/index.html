@@ -1,0 +1,701 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mentat — Documentation</title>
+  <meta name="description" content="Mentat documentation — one interface for multiple AI coding agents." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="assets/styles.css" />
+  <script>
+    // Apply saved/system theme before first paint to avoid flash
+    (function() {
+      const saved = localStorage.getItem('mentat-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (saved === 'dark' || (!saved && prefersDark)) {
+        document.documentElement.setAttribute('data-theme', 'dark');
+      }
+    })();
+  </script>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header class="site-header">
+  <a class="logo" href="#overview">
+    <div class="logo-icon">M</div>
+    <span class="logo-name">Mentat</span>
+    <span class="logo-sub">&nbsp;Docs</span>
+  </a>
+  <div class="header-sep"></div>
+  <nav class="header-nav">
+    <a href="https://github.com/demovolt/Mentat" target="_blank" rel="noopener">GitHub</a>
+    <button class="theme-toggle" id="theme-toggle" aria-label="Toggle theme">
+      <!-- sun (shown in dark mode) -->
+      <svg class="icon-sun" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/>
+        <line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/>
+        <line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/>
+        <line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/>
+      </svg>
+      <!-- moon (shown in light mode) -->
+      <svg class="icon-moon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+      </svg>
+    </button>
+    <a href="#quickstart" class="header-cta">Get started</a>
+  </nav>
+  <button class="hamburger" aria-label="Menu">
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="currentColor">
+      <rect y="2" width="18" height="2" rx="1"/>
+      <rect y="8" width="18" height="2" rx="1"/>
+      <rect y="14" width="18" height="2" rx="1"/>
+    </svg>
+  </button>
+</header>
+
+<!-- ── LAYOUT ── -->
+<div class="layout">
+
+  <!-- ── SIDEBAR ── -->
+  <nav class="sidebar">
+    <div class="nav-group">
+      <div class="nav-group-label">Getting started</div>
+      <div class="nav-sub">
+        <a class="nav-link" data-section="overview" href="#overview">
+          <span class="nav-link-icon">○</span> Overview
+        </a>
+        <a class="nav-link" data-section="quickstart" href="#quickstart">
+          <span class="nav-link-icon">○</span> Quickstart
+        </a>
+      </div>
+    </div>
+    <div class="nav-group">
+      <div class="nav-group-label">Guides</div>
+      <div class="nav-sub">
+        <a class="nav-link" data-section="how-to-use" href="#how-to-use">
+          <span class="nav-link-icon">○</span> How to Use
+        </a>
+        <a class="nav-link" data-section="how-it-works" href="#how-it-works">
+          <span class="nav-link-icon">○</span> How it Works
+        </a>
+        <a class="nav-link" data-section="connection-to-ai" href="#connection-to-ai">
+          <span class="nav-link-icon">○</span> Connection to Chat AI
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ── MAIN ── -->
+  <div class="main">
+    <div class="content-wrap">
+      <div class="content">
+
+        <!-- ══ OVERVIEW ══════════════════════════════════════════════ -->
+        <section id="sec-overview" class="doc-section">
+
+          <div class="page-head">
+            <div class="breadcrumb">
+              <span>Getting started</span>
+              <span class="breadcrumb-sep">/</span>
+              <span>Overview</span>
+            </div>
+            <h1>What is Mentat?</h1>
+            <p class="page-subtitle">One interface for multiple AI coding agents — Claude Code and Codex running in parallel across isolated git worktrees, with real-time status for every session.</p>
+          </div>
+
+          <div class="problem-block">
+            <div class="block-label">The Problem</div>
+            <p>Modern AI-assisted development means running multiple agents simultaneously — different features, different branches, different agents. But there's no unified place to manage this:</p>
+            <ul>
+              <li>Multiple scattered terminal windows — no visibility into what each agent is actually doing</li>
+              <li>Switching branches requires stashing or committing, even mid-task</li>
+              <li>Closing a terminal loses the entire AI conversation context</li>
+              <li>Claude Code and Codex live in completely separate setups with no shared view</li>
+            </ul>
+          </div>
+
+          <div class="solution-block">
+            <div class="block-label">The Solution</div>
+            <p>Mentat is an open-source Electron desktop app that brings all of this into one window. It uses <strong>git worktrees</strong> to keep each branch in its own isolated directory — so you can have multiple branches open at once, each with its own terminal and AI session, with zero context-switching cost.</p>
+          </div>
+
+          <h2 id="features">What Mentat gives you</h2>
+
+          <div class="feature-grid">
+            <div class="feature-card">
+              <div class="feature-icon">⊞</div>
+              <div class="feature-title">Unified workspace</div>
+              <div class="feature-desc">All repos, worktrees, and terminal sessions in one sidebar tree.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">◉</div>
+              <div class="feature-title">Live status badges</div>
+              <div class="feature-desc">See instantly if each agent is thinking, working, waiting, or idle.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">⎇</div>
+              <div class="feature-title">Worktree management</div>
+              <div class="feature-desc">Create, switch, and remove git worktrees without leaving the app.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">↩</div>
+              <div class="feature-title">Session resume</div>
+              <div class="feature-desc">Reopen an AI terminal and the conversation picks up exactly where it left off.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">⧉</div>
+              <div class="feature-title">Subagent tracking</div>
+              <div class="feature-desc">Nested agents dispatched by Claude are tracked individually in the sidebar.</div>
+            </div>
+            <div class="feature-card">
+              <div class="feature-icon">◫</div>
+              <div class="feature-title">Cross-platform</div>
+              <div class="feature-desc">Windows, macOS, Linux — with full WSL2 support on Windows.</div>
+            </div>
+          </div>
+
+          <h2 id="tech-stack">Technology stack</h2>
+
+          <table>
+            <thead><tr><th>Layer</th><th>Technology</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td>Desktop shell</td><td><strong>Electron 32</strong></td><td>Cross-platform native app wrapper</td></tr>
+              <tr><td>UI framework</td><td><strong>React 18 + Vite</strong></td><td>Component-based interface, fast dev builds</td></tr>
+              <tr><td>Styling</td><td><strong>Tailwind CSS</strong></td><td>Utility-first CSS</td></tr>
+              <tr><td>Terminal emulator</td><td><strong>xterm.js</strong></td><td>In-app terminal rendering</td></tr>
+              <tr><td>Pseudo-terminal</td><td><strong>node-pty</strong></td><td>Spawns real shell processes with PTY support</td></tr>
+              <tr><td>Status bridge</td><td><strong>HTTP server :27182</strong></td><td>Receives lifecycle events from Claude/Codex hooks</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="platforms">Supported platforms</h2>
+
+          <table>
+            <thead><tr><th>Platform</th><th>Status</th></tr></thead>
+            <tbody>
+              <tr><td>Windows (native)</td><td>✓ Supported</td></tr>
+              <tr><td>Windows + WSL2</td><td>✓ Fully supported (recommended)</td></tr>
+              <tr><td>Linux</td><td>✓ Supported</td></tr>
+              <tr><td>macOS</td><td>✓ Supported</td></tr>
+            </tbody>
+          </table>
+
+        </section>
+
+        <!-- ══ QUICKSTART ═════════════════════════════════════════════ -->
+        <section id="sec-quickstart" class="doc-section">
+
+          <div class="page-head">
+            <div class="breadcrumb">
+              <span>Getting started</span>
+              <span class="breadcrumb-sep">/</span>
+              <span>Quickstart</span>
+            </div>
+            <h1>Quickstart</h1>
+            <p class="page-subtitle">Get Mentat running in four steps. Takes about five minutes.</p>
+          </div>
+
+          <div class="callout callout-note">
+            <div class="callout-label">Before you begin</div>
+            <p>You need <strong>Claude Code CLI</strong> and/or <strong>Codex CLI</strong> already installed and authenticated. Mentat integrates with these tools but does not replace them.</p>
+          </div>
+
+          <div class="steps">
+
+            <div class="step">
+              <div class="step-num">1</div>
+              <div class="step-body">
+                <div class="step-title">Install Mentat</div>
+                <div class="tab-group">
+                  <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="download">Download release</button>
+                    <button class="tab-btn" data-tab="source">Build from source</button>
+                  </div>
+                  <div class="tab-content active" data-tab="download">
+                    <p>Download the pre-built binary for your platform from the <a href="https://github.com/demovolt/Mentat/releases" target="_blank" rel="noopener">GitHub Releases page</a> and run it — no installation required.</p>
+                    <table>
+                      <thead><tr><th>Platform</th><th>File</th></tr></thead>
+                      <tbody>
+                        <tr><td>Windows</td><td><code>Mentat-portable.exe</code></td></tr>
+                        <tr><td>Linux</td><td><code>Mentat.AppImage</code></td></tr>
+                        <tr><td>macOS</td><td><code>Mentat.dmg</code></td></tr>
+                      </tbody>
+                    </table>
+                  </div>
+                  <div class="tab-content" data-tab="source">
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>git clone https://github.com/demovolt/Mentat.git
+cd Mentat
+npm install &amp;&amp; npm run build &amp;&amp; npm run package</code></pre>
+                    </div>
+                    <p>The packaged output appears in the <code>release/</code> directory.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step-num">2</div>
+              <div class="step-body">
+                <div class="step-title">Install the hook script</div>
+                <p>Mentat ships a small shell script that Claude Code and Codex call at lifecycle events to report status. Copy it once — it then works across all your projects automatically.</p>
+                <p>Hook scripts are bundled inside the app at <code>resources/app/script/</code>, or at <code>script/</code> when building from source.</p>
+
+                <div class="tab-group">
+                  <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="cc-lin">Claude — Linux / macOS / WSL</button>
+                    <button class="tab-btn" data-tab="cc-win">Claude — Windows</button>
+                    <button class="tab-btn" data-tab="cx-lin">Codex — Linux / macOS / WSL</button>
+                    <button class="tab-btn" data-tab="cx-win">Codex — Windows</button>
+                  </div>
+                  <div class="tab-content active" data-tab="cc-lin">
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>cp /path/to/Mentat/script/mentat-hook.sh ~/.claude/mentat-hook.sh
+chmod +x ~/.claude/mentat-hook.sh</code></pre>
+                    </div>
+                  </div>
+                  <div class="tab-content" data-tab="cc-win">
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">powershell</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>Copy-Item "C:\path\to\Mentat\resources\app\script\mentat-hook.ps1" `
+  "$env:USERPROFILE\.claude\mentat-hook.ps1"</code></pre>
+                    </div>
+                  </div>
+                  <div class="tab-content" data-tab="cx-lin">
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>cp /path/to/Mentat/script/mentat-hook.sh ~/.codex/mentat-hook.sh
+chmod +x ~/.codex/mentat-hook.sh</code></pre>
+                    </div>
+                  </div>
+                  <div class="tab-content" data-tab="cx-win">
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">powershell</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>Copy-Item "C:\path\to\Mentat\resources\app\script\mentat-hook.ps1" `
+  "$env:USERPROFILE\.codex\mentat-hook.ps1"</code></pre>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="callout callout-tip">
+                  <div class="callout-label">Safe to install globally</div>
+                  <p>The script exits immediately when <code>MENTAT_TERM_ID</code> is not set, so it does nothing outside Mentat terminals.</p>
+                </div>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step-num">3</div>
+              <div class="step-body">
+                <div class="step-title">Register hooks</div>
+                <p>Tell Claude Code and Codex to call the script at each lifecycle event. Ready-to-use config files are included in the app.</p>
+
+                <div class="tab-group">
+                  <div class="tab-bar">
+                    <button class="tab-btn active" data-tab="reg-cc-lin">Claude — Linux / macOS / WSL</button>
+                    <button class="tab-btn" data-tab="reg-cc-win">Claude — Windows</button>
+                    <button class="tab-btn" data-tab="reg-cx-lin">Codex — Linux / macOS / WSL</button>
+                    <button class="tab-btn" data-tab="reg-cx-win">Codex — Windows</button>
+                  </div>
+
+                  <div class="tab-content active" data-tab="reg-cc-lin">
+                    <p>Merge the following into <code>~/.claude/settings.json</code>. If the file already has a <code>hooks</code> block, add these entries to it — don't replace the whole file.</p>
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">json</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>{
+  "hooks": {
+    "SessionStart":    [{ "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh session_start" }] }],
+    "SessionEnd":      [{ "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh session_stop" }] }],
+    "UserPromptSubmit":[{ "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh thinking" }] }],
+    "PreToolUse": [
+      { "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh working" }] },
+      { "matcher": "AskUserQuestion", "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh waiting" }] },
+      { "matcher": "Agent",           "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh agent_start" }] }
+    ],
+    "PostToolUse":     [{ "matcher": "Agent", "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh agent_stop" }] }],
+    "Notification":    [{ "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh waiting" }] }],
+    "Stop":            [{ "hooks": [{ "type": "command", "command": "bash ~/.claude/mentat-hook.sh idle" }] }]
+  }
+}</code></pre>
+                    </div>
+                  </div>
+
+                  <div class="tab-content" data-tab="reg-cc-win">
+                    <p>Same structure, but replace each command with the PowerShell form. Substitute <code>PATH_TO_CLAUDE</code> with your full <code>.claude</code> path (e.g. <code>C:/Users/User/.claude</code>).</p>
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">json — command example</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>"command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CLAUDE/mentat-hook.ps1 session_start"</code></pre>
+                    </div>
+                    <p>See <code>script/claude-settings-windows.json</code> in the app for the complete ready-to-use config.</p>
+                  </div>
+
+                  <div class="tab-content" data-tab="reg-cx-lin">
+                    <p>Create or update <code>~/.codex/hooks.json</code>:</p>
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">json</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>{
+  "description": "mentat",
+  "hooks": {
+    "session_start":      [{ "command": "bash ~/.codex/mentat-hook.sh session_start" }],
+    "session_end":        [{ "command": "bash ~/.codex/mentat-hook.sh session_stop" }],
+    "user_prompt_submit": [{ "command": "bash ~/.codex/mentat-hook.sh thinking" }],
+    "pre_tool_use":       [{ "command": "bash ~/.codex/mentat-hook.sh working" }],
+    "post_tool_use":      [{ "command": "bash ~/.codex/mentat-hook.sh thinking" }],
+    "stop":               [{ "command": "bash ~/.codex/mentat-hook.sh idle" }],
+    "subagent_start":     [{ "command": "bash ~/.codex/mentat-hook.sh agent_start" }],
+    "subagent_stop":      [{ "command": "bash ~/.codex/mentat-hook.sh agent_stop" }]
+  }
+}</code></pre>
+                    </div>
+                  </div>
+
+                  <div class="tab-content" data-tab="reg-cx-win">
+                    <p>Same structure, replace each command with the PowerShell form. Replace <code>PATH_TO_CODEX</code> with your <code>.codex</code> folder path.</p>
+                    <div class="code-block">
+                      <div class="code-block-header"><span class="code-lang">json — command example</span><button class="copy-btn">Copy</button></div>
+                      <pre><code>"command": "powershell -ExecutionPolicy Bypass -File PATH_TO_CODEX/mentat-hook.ps1 session_start"</code></pre>
+                    </div>
+                    <p>See <code>script/codex-hooks-windows.json</code> in the app for the full config.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div class="step">
+              <div class="step-num">4</div>
+              <div class="step-body">
+                <div class="step-title">Launch Mentat</div>
+                <ol>
+                  <li>Start the app (<code>Mentat.exe</code>, <code>Mentat.AppImage</code>, or the macOS app)</li>
+                  <li>Open <strong>Settings → Connection</strong> — confirm the status server is green and hook scripts show ✓</li>
+                  <li>Click <strong>+</strong> in the toolbar to add a Git repository</li>
+                  <li>Select a worktree and click the <strong>Claude</strong> or <strong>Codex</strong> button to open an AI terminal</li>
+                </ol>
+              </div>
+            </div>
+          </div>
+
+          <h2 id="troubleshooting">Troubleshooting</h2>
+
+          <h3 id="status-not-updating">Status indicators not updating</h3>
+          <p>Open <strong>Settings → Connection</strong> and check that the status server is running and hook scripts are marked ✓. If a script shows ✗, repeat Step 2 — the file is missing from the expected location.</p>
+
+          <h3 id="wsl-firewall">Windows + WSL: hooks not reaching Mentat</h3>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">powershell</span><button class="copy-btn">Copy</button></div>
+            <pre><code>netsh advfirewall firewall add rule name="Mentat Status" dir=in action=allow protocol=TCP localport=27182</code></pre>
+          </div>
+          <p>Restart Mentat after adding the rule.</p>
+
+          <h3 id="port-conflict">Port 27182 conflict</h3>
+          <p>Mentat automatically tries 27183–27191 if 27182 is taken. The active port is shown in <strong>Settings → Connection</strong>.</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">bash</span><button class="copy-btn">Copy</button></div>
+            <pre><code># Linux / WSL
+lsof -i :27182
+
+# Windows PowerShell
+netstat -ano | findstr :27182</code></pre>
+          </div>
+
+        </section>
+
+        <!-- ══ HOW TO USE ══════════════════════════════════════════════ -->
+        <section id="sec-how-to-use" class="doc-section">
+
+          <div class="page-head">
+            <div class="breadcrumb">
+              <span>Guides</span>
+              <span class="breadcrumb-sep">/</span>
+              <span>How to Use</span>
+            </div>
+            <h1>How to Use</h1>
+            <p class="page-subtitle">A step-by-step walkthrough of the core Mentat workflow.</p>
+          </div>
+
+          <h2 id="add-repository">Add a repository</h2>
+          <p>Click the <strong>+</strong> button in the toolbar at the top of the sidebar. Select the root folder of any git repository. Mentat reads the git tree and discovers all existing worktrees automatically — they appear as children of the repository in the sidebar.</p>
+
+          <h2 id="add-worktree">Add a worktree</h2>
+          <p>Right-click a repository in the sidebar and choose <strong>New worktree</strong>. In the dialog, pick an existing branch or type a new branch name to create one. Mentat creates a fully isolated directory for that branch on disk — completely independent of your main working directory.</p>
+
+          <div class="callout callout-note">
+            <div class="callout-label">What is a worktree?</div>
+            <p>A git worktree is a separate checkout of a repository branch. Each branch lives in its own folder — you can edit, build, and run them independently with no stashing or committing needed to switch.</p>
+          </div>
+
+          <h2 id="open-terminal">Open a terminal</h2>
+          <p>Click a worktree to select it, then click the <strong>Shell</strong> button. A terminal opens already <code>cd</code>'d into the correct directory. Use the <strong>+</strong> in the terminal tab bar to open additional shell tabs for the same worktree.</p>
+
+          <h2 id="open-ai">Open an AI session</h2>
+          <p>Click the <strong>Claude</strong> or <strong>Codex</strong> button inside any worktree. Mentat spawns the CLI in the correct directory and automatically passes <code>--resume</code> if a previous session exists for this worktree — the conversation continues from where it stopped.</p>
+
+          <h2 id="status-indicators">Status indicators</h2>
+          <p>While an AI is active, a live badge appears next to the terminal in the sidebar:</p>
+
+          <div class="status-grid">
+            <div class="status-card">
+              <div class="status-dot thinking"></div>
+              <div>
+                <div class="status-card-label">Thinking</div>
+                <div class="status-card-desc">Processing your prompt, between tool calls</div>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-dot working"></div>
+              <div>
+                <div class="status-card-label">Working</div>
+                <div class="status-card-desc">Actively executing a tool — reading, writing, running</div>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-dot waiting"></div>
+              <div>
+                <div class="status-card-label">Waiting</div>
+                <div class="status-card-desc">Waiting for your input or a confirmation</div>
+              </div>
+            </div>
+            <div class="status-card">
+              <div class="status-dot idle"></div>
+              <div>
+                <div class="status-card-label">Idle</div>
+                <div class="status-card-desc">Task complete, ready for the next prompt</div>
+              </div>
+            </div>
+          </div>
+
+          <h2 id="session-resume">Session resume</h2>
+          <p>Mentat stores the Claude session ID per worktree. The next time you open an AI terminal for the same worktree, it passes <code>--resume &lt;sessionId&gt;</code> automatically. The AI remembers the full prior conversation.</p>
+
+          <div class="callout callout-tip">
+            <div class="callout-label">Per-worktree context</div>
+            <p>Session IDs are isolated per worktree. Switching to a different branch always gives you the correct conversation context for that branch, with no cross-contamination.</p>
+          </div>
+
+          <h2 id="subagents">Subagent tracking</h2>
+          <p>When Claude Code dispatches a managed subagent via the <code>Agent</code> tool, Mentat shows each running agent under the terminal entry in the sidebar, with its description. You can see at a glance how many parallel agents are active and what each one is doing.</p>
+
+        </section>
+
+        <!-- ══ HOW IT WORKS ════════════════════════════════════════════ -->
+        <section id="sec-how-it-works" class="doc-section">
+
+          <div class="page-head">
+            <div class="breadcrumb">
+              <span>Guides</span>
+              <span class="breadcrumb-sep">/</span>
+              <span>How it Works</span>
+            </div>
+            <h1>How it Works</h1>
+            <p class="page-subtitle">The technical architecture behind Mentat's real-time AI status tracking.</p>
+          </div>
+
+          <h2 id="architecture-overview">Architecture overview</h2>
+          <p>Mentat does not call the Claude or Codex API. Instead, it integrates at the <strong>CLI lifecycle level</strong>: a hook script registered with the CLI fires at specific events and POSTs a status update to a local HTTP server inside Mentat, which then pushes the update to the React UI via Electron IPC.</p>
+
+          <div class="flowchart-wrap">
+            <div class="flowchart">
+
+              <div class="fc-node blue">
+                <div class="fc-node-title">Claude Code / Codex CLI</div>
+                <div class="fc-node-sub">Running inside node-pty (PTY process)</div>
+              </div>
+
+              <div class="fc-arrow">
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-label">Lifecycle event fires (PreToolUse, Stop…)</div>
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-tip"></div>
+              </div>
+
+              <div class="fc-node purple">
+                <div class="fc-node-title">mentat-hook.sh / .ps1</div>
+                <div class="fc-node-sub">~/.claude/ or ~/.codex/ — called by the CLI</div>
+              </div>
+
+              <div class="fc-arrow">
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-label">HTTP POST /status { termId, status }</div>
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-tip"></div>
+              </div>
+
+              <div class="fc-node orange">
+                <div class="fc-node-title">Status Server :27182</div>
+                <div class="fc-node-sub">HTTP server in Electron main process</div>
+              </div>
+
+              <div class="fc-arrow">
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-label">Updates in-memory Map → IPC → renderer</div>
+                <div class="fc-arrow-line"></div>
+                <div class="fc-arrow-tip"></div>
+              </div>
+
+              <div class="fc-node green">
+                <div class="fc-node-title">React UI (App.jsx)</div>
+                <div class="fc-node-sub">Re-renders sidebar status badges</div>
+              </div>
+
+            </div>
+          </div>
+
+          <h2 id="components">Components</h2>
+
+          <h3 id="electron-main">Electron main process</h3>
+          <p>Manages the app lifecycle (<code>electron/main.js</code>). On startup it creates the <code>BrowserWindow</code>, starts the status server on port 27182 (falling back to 27183–27191), and registers IPC handlers for git operations and terminal management. A <code>ptyProcesses</code> Map tracks every open terminal tab.</p>
+
+          <h3 id="status-server">Status server</h3>
+          <p>A plain HTTP server (<code>electron/status-server.js</code>) that accepts POST requests from hook scripts and updates shared in-memory state in <code>electron/terminal-state.js</code>.</p>
+
+          <table>
+            <thead><tr><th>Endpoint</th><th>Payload</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><code>POST /status</code></td><td><code>{ termId, status, sessionId? }</code></td><td>Update terminal status or record session start/stop</td></tr>
+              <tr><td><code>POST /agent</code></td><td><code>{ termId, agentId, event, description? }</code></td><td>Track subagent lifecycle (start / stop)</td></tr>
+            </tbody>
+          </table>
+
+          <h3 id="pty-management">Terminal spawning</h3>
+          <p>When you open a terminal (<code>electron/ipc/pty.js</code>), Mentat spawns a shell or AI CLI using <strong>node-pty</strong> and injects three environment variables before the process starts:</p>
+
+          <table>
+            <thead><tr><th>Variable</th><th>Value</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td><span class="env-name">MENTAT_TERM_ID</span></td><td><code>term-3-1720000000</code></td><td>Identifies which terminal tab this status belongs to</td></tr>
+              <tr><td><span class="env-name">MENTAT_STATUS_PORT</span></td><td><code>27182</code></td><td>Port of the local status server</td></tr>
+              <tr><td><span class="env-name">MENTAT_STATUS_HOST</span></td><td><code>127.0.0.1</code> or WSL host IP</td><td>Address of the status server — auto-resolved for WSL</td></tr>
+            </tbody>
+          </table>
+
+          <h3 id="react-ui">React UI</h3>
+          <p>The renderer (<code>src/App.jsx</code>) subscribes to three IPC events:</p>
+          <ul>
+            <li><code>worktree:status-changed</code> — updates the status badge for a terminal tab</li>
+            <li><code>worktree:agent-changed</code> — updates the subagent list in the sidebar</li>
+            <li><code>session:id-updated</code> — stores the session ID for the next <code>--resume</code></li>
+          </ul>
+
+          <h3 id="wsl-bridge">WSL bridge</h3>
+          <p>On Windows, Electron runs natively while terminals may run inside WSL. Mentat resolves the Windows host IP from <code>/etc/resolv.conf</code> inside WSL and injects it as <code>MENTAT_STATUS_HOST</code>, forwarded into the WSL environment via <code>WSLENV</code>.</p>
+
+          <h3 id="git-operations">Git operations</h3>
+          <p>All git operations go through <code>electron/ipc/git.js</code>, which calls the system <code>git</code> CLI via <code>child_process</code>. No git library — just the real CLI.</p>
+
+          <h2 id="state-persistence">State persistence</h2>
+          <p>In-memory state (statuses, active agents) resets on app restart. Workspace config and session IDs are persisted to <code>config.json</code> and <code>state.json</code> on disk — this is what powers session resume across restarts.</p>
+
+        </section>
+
+        <!-- ══ CONNECTION TO AI ════════════════════════════════════════ -->
+        <section id="sec-connection-to-ai" class="doc-section">
+
+          <div class="page-head">
+            <div class="breadcrumb">
+              <span>Guides</span>
+              <span class="breadcrumb-sep">/</span>
+              <span>Connection to Chat AI</span>
+            </div>
+            <h1>Connection to Chat AI</h1>
+            <p class="page-subtitle">How Mentat integrates with Claude Code and Codex — at the CLI level, without calling any cloud API.</p>
+          </div>
+
+          <div class="callout callout-note">
+            <div class="callout-label">Key distinction</div>
+            <p>Mentat does <strong>not</strong> call the Anthropic API or OpenAI API. It integrates with the locally installed <strong>CLI tools</strong> — <code>claude</code> and <code>codex</code> — the same programs you run in a regular terminal.</p>
+          </div>
+
+          <h2 id="hook-based">Hook-based integration</h2>
+          <p>Both Claude Code and Codex support a <strong>hooks</strong> system: you register shell commands that the CLI executes at specific lifecycle points. Mentat uses this to receive real-time status updates without any polling.</p>
+          <p>When you register the Mentat hook script, the CLI calls it automatically at each event:</p>
+
+          <table>
+            <thead><tr><th>Hook event</th><th>CLI trigger</th><th>Mentat status</th></tr></thead>
+            <tbody>
+              <tr><td><code>SessionStart</code> / <code>session_start</code></td><td>CLI session begins; stdin carries <code>session_id</code></td><td>Session ID stored for resume</td></tr>
+              <tr><td><code>UserPromptSubmit</code> / <code>user_prompt_submit</code></td><td>User sends a prompt</td><td>● Thinking</td></tr>
+              <tr><td><code>PreToolUse</code> / <code>pre_tool_use</code></td><td>AI is about to execute a tool</td><td>● Working</td></tr>
+              <tr><td><code>AskUserQuestion</code> matcher</td><td>AI asks the user a question</td><td>● Waiting</td></tr>
+              <tr><td><code>Notification</code></td><td>CLI waiting for confirmation</td><td>● Waiting</td></tr>
+              <tr><td><code>Stop</code> / <code>stop</code></td><td>AI finished the current task</td><td>● Idle</td></tr>
+              <tr><td><code>SessionEnd</code> / <code>session_end</code></td><td>CLI process exited</td><td>Session cleared</td></tr>
+              <tr><td><code>Agent</code> / <code>subagent_start</code></td><td>A subagent is dispatched</td><td>Agent listed in sidebar</td></tr>
+              <tr><td><code>PostToolUse</code> / <code>subagent_stop</code></td><td>Subagent completed</td><td>Agent removed from sidebar</td></tr>
+            </tbody>
+          </table>
+
+          <h2 id="session-resume-detail">Session resume in detail</h2>
+          <p>Claude Code assigns a unique <code>session_id</code> to each conversation. When the <code>session_start</code> hook fires, the hook script reads this ID from stdin JSON and POSTs it to Mentat's status server, which stores it keyed to the worktree.</p>
+          <p>The next time you open an AI terminal for the same worktree, Mentat automatically passes:</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">shell</span><button class="copy-btn">Copy</button></div>
+            <pre><code>claude --resume &lt;sessionId&gt;</code></pre>
+          </div>
+          <p>The conversation continues exactly where it stopped — the AI remembers prior context, file changes, and messages.</p>
+
+          <h2 id="subagent-tracking-detail">Subagent tracking</h2>
+          <p>When Claude Code uses the <code>Agent</code> tool to spawn a managed subagent, the <code>PreToolUse</code> hook fires with the agent description in the stdin JSON payload. The hook POSTs to <code>/agent</code>:</p>
+          <div class="code-block">
+            <div class="code-block-header"><span class="code-lang">json — POST /agent</span><button class="copy-btn">Copy</button></div>
+            <pre><code>{
+  "termId": "term-3-1720000000",
+  "agentId": "toolu_01XYZ...",
+  "event": "start",
+  "description": "Search for usages of deprecated API"
+}</code></pre>
+          </div>
+          <p>When <code>PostToolUse</code> fires for the same <code>agentId</code>, the agent is removed from the sidebar list. This gives you a real-time view of all running agents across all worktrees.</p>
+
+          <h2 id="environment-variables-detail">Environment variables</h2>
+          <table>
+            <thead><tr><th>Variable</th><th>Example</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="env-name">MENTAT_TERM_ID</span></td>
+                <td><code>term-3-1720000000</code></td>
+                <td>Identifies which terminal tab this status belongs to. Sent with every POST.</td>
+              </tr>
+              <tr>
+                <td><span class="env-name">MENTAT_STATUS_PORT</span></td>
+                <td><code>27182</code></td>
+                <td>Port of the status server (dynamically assigned, usually 27182).</td>
+              </tr>
+              <tr>
+                <td><span class="env-name">MENTAT_STATUS_HOST</span></td>
+                <td><code>127.0.0.1</code></td>
+                <td>Address of the status server. On Windows + WSL, automatically set to the Windows-side host IP.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p>When <code>MENTAT_TERM_ID</code> is absent (any terminal not created by Mentat), the hook exits immediately at line 2 — safe to install globally.</p>
+
+          <h2 id="why-no-api">Why no API?</h2>
+          <ul>
+            <li><strong>No separate authentication</strong> — you log in to Claude/Codex once through the CLI; Mentat inherits that automatically</li>
+            <li><strong>Zero latency overhead</strong> — status updates are fire-and-forget HTTP POSTs to localhost, not cloud round-trips</li>
+            <li><strong>Full CLI feature parity</strong> — every Claude Code or Codex capability (MCP servers, tool use, file context) works exactly as in a normal terminal, because it <em>is</em> a normal terminal</li>
+            <li><strong>Works offline</strong> — once the CLI is authenticated, Mentat works without any additional network access</li>
+          </ul>
+
+        </section>
+
+      </div><!-- /content -->
+    </div><!-- /content-wrap -->
+
+    <!-- ── RIGHT TOC ── -->
+    <aside class="toc">
+      <div class="toc-label">On this page</div>
+      <div class="toc-links"></div>
+    </aside>
+
+  </div><!-- /main -->
+</div><!-- /layout -->
+
+<script src="assets/script.js"></script>
+</body>
+</html>
