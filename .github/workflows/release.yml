@@ -20,7 +20,7 @@ jobs:
       - run: npm ci --ignore-scripts
       - run: npm rebuild node-pty
       - run: npm run build
-      - run: npx electron-builder --linux --config.npmRebuild=false
+      - run: npx electron-builder --linux --config.npmRebuild=false --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -37,6 +37,6 @@ jobs:
           cache: npm
       - run: npm ci --ignore-scripts
       - run: npm run build
-      - run: npx electron-builder --win --config.npmRebuild=false
+      - run: npx electron-builder --win --config.npmRebuild=false --publish always
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
