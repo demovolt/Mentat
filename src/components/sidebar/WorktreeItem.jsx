@@ -1,9 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
 import { BranchIcon, TerminalIndicator, StatusDot, AgentTreeItem } from './SidebarIcons.jsx';
 import DropMenuItem from './DropMenuItem.jsx';
 
-export default function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, terminalSessionActive, terminalAgents, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
+function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, terminalSessionActive, terminalAgents, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -147,3 +147,25 @@ export default function WorktreeItem({ wt, active, customName, wtTerminals, term
     </div>
   );
 }
+
+function arePropsEqual(prev, next) {
+  if (prev.active !== next.active) return false;
+  if (prev.wt !== next.wt) return false;
+  if (prev.customName !== next.customName) return false;
+  if (prev.wtTerminals !== next.wtTerminals) return false;
+  if (prev.onClick !== next.onClick) return false;
+  if (prev.onRemoveWorktree !== next.onRemoveWorktree) return false;
+  if (prev.onDeleteBranch !== next.onDeleteBranch) return false;
+  if (prev.onRemoveBoth !== next.onRemoveBoth) return false;
+  if (prev.onRename !== next.onRename) return false;
+  // Only compare status values for this worktree's own terminals
+  const ids = prev.wtTerminals.map(t => t.id);
+  for (const id of ids) {
+    if (prev.terminalStatuses[id] !== next.terminalStatuses[id]) return false;
+    if (prev.terminalSessionActive[id] !== next.terminalSessionActive[id]) return false;
+    if (prev.terminalAgents[id] !== next.terminalAgents[id]) return false;
+  }
+  return true;
+}
+
+export default memo(WorktreeItem, arePropsEqual);

@@ -41,7 +41,6 @@ contextBridge.exposeInMainWorld('api', {
   onWorktreeStatus:   on('worktree:status-changed'),
   onWorktreeAgent:    on('worktree:agent-changed'),
   onTerminalExited:   on('pty:exited'),
-  onSessionIdUpdated: on('session:id-updated'),
 
   // Clipboard (synchronous Electron API — navigator.clipboard is unreliable in renderer)
   clipboardRead: () => clipboard.readText(),

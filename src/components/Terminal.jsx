@@ -1,18 +1,18 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Terminal as XTerm } from '@xterm/xterm';
 import { FitAddon } from '@xterm/addon-fit';
 import { WebglAddon } from '@xterm/addon-webgl';
 import { WebLinksAddon } from '@xterm/addon-web-links';
-import { ClipboardAddon } from '@xterm/addon-clipboard';
 import '@xterm/xterm/css/xterm.css';
 import { TERMINAL_THEME } from '../constants/terminalTheme.js';
 
-export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight, type, aiCommand, sessionId }) {
+export default function Terminal({ termId, worktreePath, shellId, active, fontFamily, fontSize, lineHeight, gpuOnly, type, aiCommand, sessionId }) {
   const containerRef = useRef(null);
   const xtermRef = useRef(null);
   const fitAddonRef = useRef(null);
   const activeRef = useRef(active);
   activeRef.current = active;
+  const [webglError, setWebglError] = useState(null);
 
   // Mount xterm once
   useEffect(() => {
@@ -23,6 +23,8 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
       theme: TERMINAL_THEME,
       fontSize: fontSize || 13,
       fontFamily: fontFamily || "'Ubuntu Mono', 'Consolas', monospace",
+      fontWeight: '500',
+      fontWeightBold: 'bold',
       lineHeight: lineHeight || 1.2,
       cursorBlink: true,
       cursorStyle: 'block',
@@ -38,7 +40,6 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
     xterm.loadAddon(new WebLinksAddon((_, url) => {
       if (/^https?:\/\//i.test(url)) window.open(url, '_blank');
     }));
-    if (navigator.clipboard?.readText) xterm.loadAddon(new ClipboardAddon());
 
     try {
       const webgl = new WebglAddon();
@@ -52,8 +53,12 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
       };
       webgl.onContextLoss(() => webgl.dispose());
       xterm.loadAddon(webgl);
-    } catch {
-      // fallback to canvas renderer
+    } catch (err) {
+      if (gpuOnly) {
+        xterm.dispose();
+        setWebglError(err?.message || 'WebGL unavailable');
+        return;
+      }
     }
 
     xtermRef.current = xterm;
@@ -109,28 +114,29 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
 
     window.api.createTerminal(termId, worktreePath, shellId, type, aiCommand, sessionId);
 
-    // Double rAF: wait for browser to complete layout before fitting
-    let raf1, raf2;
-    raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
-        try { fit.fit(); } catch {}
-      });
+    // Single rAF: wait for browser to complete layout before fitting
+    let raf1 = requestAnimationFrame(() => {
+      try { fit.fit(); } catch {}
     });
 
+    let resizeTimer = null;
     const obs = new ResizeObserver(() => {
-      try {
-        fit.fit();
-        if (activeRef.current) {
-          const rows = xterm.rows ?? 0;
-          if (rows > 0) xterm.refresh(0, rows - 1);
-        }
-      } catch {}
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(() => {
+        try {
+          fit.fit();
+          if (activeRef.current) {
+            const rows = xterm.rows ?? 0;
+            if (rows > 0) xterm.refresh(0, rows - 1);
+          }
+        } catch {}
+      }, 16);
     });
     obs.observe(el);
 
     return () => {
       cancelAnimationFrame(raf1);
-      cancelAnimationFrame(raf2);
+      clearTimeout(resizeTimer);
       obs.disconnect();
       window.api.closeTerminal(termId);
       xterm.dispose();
@@ -157,20 +163,26 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
   // Focus + fit when this terminal becomes visible
   useEffect(() => {
     if (active && xtermRef.current) {
-      let raf1, raf2;
-      raf1 = requestAnimationFrame(() => {
-        raf2 = requestAnimationFrame(() => {
-          try {
-            fitAddonRef.current?.fit();
-            const rows = xtermRef.current?.rows ?? 0;
-            if (rows > 0) xtermRef.current?.refresh(0, rows - 1);
-          } catch {}
-          xtermRef.current?.focus();
-        });
+      const raf1 = requestAnimationFrame(() => {
+        try {
+          fitAddonRef.current?.fit();
+          const rows = xtermRef.current?.rows ?? 0;
+          if (rows > 0) xtermRef.current?.refresh(0, rows - 1);
+        } catch {}
+        xtermRef.current?.focus();
       });
-      return () => { cancelAnimationFrame(raf1); cancelAnimationFrame(raf2); };
+      return () => cancelAnimationFrame(raf1);
     }
   }, [active]);
+
+  if (webglError) {
+    return (
+      <div style={{ visibility: active ? 'visible' : 'hidden', position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#0d0d0d', color: '#f87171', fontFamily: 'monospace', fontSize: 13, textAlign: 'center', padding: 24 }}>
+        GPU rendering failed: {webglError}<br />
+        Disable "GPU Only" in settings to allow CPU fallback.
+      </div>
+    );
+  }
 
   return (
     <div

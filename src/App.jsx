@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import TitleBar from './components/TitleBar.jsx';
 import Sidebar from './components/Sidebar.jsx';
 import TerminalTabs from './components/TerminalTabs.jsx';
@@ -19,6 +19,7 @@ const DEFAULT_SETTINGS = {
     fontFamily: "'Ubuntu Mono', 'Consolas', monospace",
     fontSize: 13,
     lineHeight: 1.2,
+    gpuOnly: true,
   },
 };
 function deriveAiLabel(cmd) {
@@ -34,10 +35,19 @@ export default function App() {
   const [activeWorktreePath, setActiveWorktreePath] = useState(null);
   const [terminals, setTerminals] = useState([]);            // { id, worktreePath, label, shellId }
   const [activeTerminalId, setActiveTerminalId] = useState(null);
+  const [mountedTerminalIds, setMountedTerminalIds] = useState(() => new Set());
   const [showModal, setShowModal] = useState(false);
   const [newWorktreeRepo, setNewWorktreeRepo] = useState(null);
   const [error, setError] = useState(null);
   const errorTimerRef = useRef(null);
+  const saveConfigTimer = useRef(null);
+  const saveStateTimer = useRef(null);
+  // Refs for stable callbacks that need current state without deps
+  const worktreesMapRef = useRef({});
+  const activeWorktreePathRef = useRef(null);
+  const aiCommandRef = useRef('claude');
+  const shellProfilesRef = useRef([]);
+  const settingsRef = useRef(DEFAULT_SETTINGS);
   const [terminalStatuses, setTerminalStatuses] = useState({});
   const [terminalSessionActive, setTerminalSessionActive] = useState({});
   const [terminalAgents, setTerminalAgents] = useState({});
@@ -46,6 +56,13 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
 
   const aiCommand = settings.ai === 'codex' ? 'codex' : 'claude';
+
+  // Keep refs in sync with latest values for stable callbacks
+  worktreesMapRef.current = worktreesMap;
+  activeWorktreePathRef.current = activeWorktreePath;
+  aiCommandRef.current = aiCommand;
+  shellProfilesRef.current = shellProfiles;
+  settingsRef.current = settings;
 
   const showError = useCallback((msg) => {
     setError(msg);
@@ -115,7 +132,10 @@ export default function App() {
 
   useEffect(() => {
     if (!stateLoaded.current) return;
-    window.api.saveConfig({ workspace, settings });
+    clearTimeout(saveConfigTimer.current);
+    saveConfigTimer.current = setTimeout(() => {
+      window.api.saveConfig({ workspace, settings });
+    }, 300);
   }, [workspace, settings]);
 
   useEffect(() => {
@@ -125,24 +145,23 @@ export default function App() {
 
   useEffect(() => {
     if (!stateLoaded.current) return;
-    window.api.saveState({
-      activeWorktreePath,
-      terminals: terminals.map(({ worktreePath, label, shellId, type, sessionId }) => ({ worktreePath, label, shellId, type: type || null, sessionId: sessionId || null })),
-      worktreeNames,
-    });
+    clearTimeout(saveStateTimer.current);
+    saveStateTimer.current = setTimeout(() => {
+      window.api.saveState({
+        activeWorktreePath,
+        terminals: terminals.map(({ worktreePath, label, shellId, type, sessionId }) => ({ worktreePath, label, shellId, type: type || null, sessionId: sessionId || null })),
+        worktreeNames,
+      });
+    }, 300);
   }, [terminals, activeWorktreePath, worktreeNames]);
 
   useEffect(() => {
-    const unsub = window.api.onWorktreeStatus(({ termId, status, sessionActive }) => {
+    return window.api.onWorktreeStatus(({ termId, status, sessionActive, sessionId }) => {
       setTerminalStatuses(prev => ({ ...prev, [termId]: status }));
       setTerminalSessionActive(prev => ({ ...prev, [termId]: sessionActive }));
-    });
-    return unsub;
-  }, []);
-
-  useEffect(() => {
-    return window.api.onSessionIdUpdated(({ termId, sessionId }) => {
-      setTerminals(prev => prev.map(t => t.id === termId ? { ...t, sessionId } : t));
+      if (sessionId) {
+        setTerminals(prev => prev.map(t => t.id === termId ? { ...t, sessionId } : t));
+      }
     });
   }, []);
 
@@ -155,19 +174,19 @@ export default function App() {
   // ── Terminal management ───────────────────────────────────────────────────
 
   const addTerminal = useCallback((worktreePath, shellId) => {
-    const resolvedShellId = shellId ?? settings.defaultShellId ?? null;
+    const resolvedShellId = shellId ?? settingsRef.current.defaultShellId ?? null;
     const id = newTermId();
     setTerminals((prev) => {
       const existing = prev.filter((t) => t.worktreePath === worktreePath);
       if (existing.length >= MAX_TABS) return prev;
       const num = existing.length + 1;
-      const profile = shellProfiles.find(p => p.id === resolvedShellId);
+      const profile = shellProfilesRef.current.find(p => p.id === resolvedShellId);
       const label = profile ? `${profile.name} ${num}` : `Terminal ${num}`;
       return [...prev, { id, worktreePath, shellId: resolvedShellId, label }];
     });
     setActiveTerminalId(id);
     return id;
-  }, [shellProfiles, settings.defaultShellId]);
+  }, []);
 
   const addAiTerminal = useCallback((worktreePath) => {
     const id = newTermId();
@@ -175,12 +194,12 @@ export default function App() {
       if (prev.filter(t => t.worktreePath === worktreePath).length >= MAX_TABS) return prev;
       const existingAi = prev.filter(t => t.worktreePath === worktreePath && t.type === 'ai');
       const num = existingAi.length + 1;
-      const label = `${deriveAiLabel(aiCommand)} ${num}`;
+      const label = `${deriveAiLabel(aiCommandRef.current)} ${num}`;
       return [...prev, { id, worktreePath, shellId: null, label, type: 'ai' }];
     });
     setActiveTerminalId(id);
     return id;
-  }, [aiCommand]);
+  }, []);
 
   const handleSelectWorktree = useCallback((wt) => {
     setActiveWorktreePath(wt.path);
@@ -189,7 +208,7 @@ export default function App() {
       if (existing.length === 0) {
         const id = newTermId();
         setActiveTerminalId(id);
-        return [...prev, { id, worktreePath: wt.path, shellId: null, label: `${deriveAiLabel(aiCommand)} 1`, type: 'ai' }];
+        return [...prev, { id, worktreePath: wt.path, shellId: null, label: `${deriveAiLabel(aiCommandRef.current)} 1`, type: 'ai' }];
       }
       setActiveTerminalId((cur) => {
         const stillThere = existing.find((t) => t.id === cur);
@@ -197,9 +216,23 @@ export default function App() {
       });
       return prev;
     });
-  }, [aiCommand]);
+  }, []);
+
+  useEffect(() => {
+    if (activeTerminalId) {
+      setMountedTerminalIds(prev => {
+        if (prev.has(activeTerminalId)) return prev;
+        return new Set([...prev, activeTerminalId]);
+      });
+    }
+  }, [activeTerminalId]);
 
   const handleCloseTerminal = useCallback((termId) => {
+    setMountedTerminalIds(prev => {
+      const next = new Set(prev);
+      next.delete(termId);
+      return next;
+    });
     setTerminals((prev) => {
       const term = prev.find((t) => t.id === termId);
       const next = prev.filter((t) => t.id !== termId);
@@ -230,38 +263,40 @@ export default function App() {
 
   // ── Workspace management ──────────────────────────────────────────────────
 
-  const addRepo = async () => {
+  const addRepo = useCallback(async () => {
     const folder = await window.api.openFolder();
     if (!folder) return;
     const root = await window.api.detectRepo(folder);
     if (!root) { showError('Git repository not found.'); return; }
-    if (workspace.some(r => r.path === root)) return;
-    setWorkspace(prev => [...prev, { path: root }]);
+    setWorkspace(prev => {
+      if (prev.some(r => r.path === root)) return prev;
+      return [...prev, { path: root }];
+    });
     window.api.gitCurrentBranch(root).then(b => {
       if (b) setMainBranchMap(prev => ({ ...prev, [root]: b }));
     });
     loadWorktrees(root);
-  };
+  }, [showError, loadWorktrees]);
 
-  const removeRepo = (repoPath) => {
-    const repoWorktrees = worktreesMap[repoPath] || [];
+  const removeRepo = useCallback((repoPath) => {
+    const repoWorktrees = worktreesMapRef.current[repoPath] || [];
     const removedPaths = new Set(repoWorktrees.map(wt => wt.path));
     setWorkspace(prev => prev.filter(r => r.path !== repoPath));
     setWorktreesMap(prev => { const next = { ...prev }; delete next[repoPath]; return next; });
     setMainBranchMap(prev => { const next = { ...prev }; delete next[repoPath]; return next; });
     setTerminals(prev => prev.filter(t => !removedPaths.has(t.worktreePath)));
-    if (activeWorktreePath && removedPaths.has(activeWorktreePath)) {
+    if (activeWorktreePathRef.current && removedPaths.has(activeWorktreePathRef.current)) {
       setActiveWorktreePath(null);
       setActiveTerminalId(null);
     }
-  };
+  }, []);
 
   // ── Worktree management ───────────────────────────────────────────────────
 
-  const handleNewWorktreeClick = (repoPath) => {
+  const handleNewWorktreeClick = useCallback((repoPath) => {
     setNewWorktreeRepo(repoPath);
     setShowModal(true);
-  };
+  }, []);
 
   const handleCreateWorktree = async ({ branch, worktreeName, customName }) => {
     if (!newWorktreeRepo) return;
@@ -311,7 +346,20 @@ export default function App() {
 
   // ── Render ────────────────────────────────────────────────────────────────
 
-  const currentTabs = terminals.filter((t) => t.worktreePath === activeWorktreePath);
+  const currentTabs = useMemo(
+    () => terminals.filter((t) => t.worktreePath === activeWorktreePath),
+    [terminals, activeWorktreePath]
+  );
+
+  const handleNewTerminal = useCallback(
+    (shellId) => addTerminal(activeWorktreePath, shellId),
+    [addTerminal, activeWorktreePath]
+  );
+
+  const handleNewAiTerminal = useCallback(
+    () => addAiTerminal(activeWorktreePath),
+    [addAiTerminal, activeWorktreePath]
+  );
 
   return (
     <div className="flex flex-col h-screen bg-[#0f0f0f]">
@@ -347,8 +395,8 @@ export default function App() {
               activeId={activeTerminalId}
               onSelect={setActiveTerminalId}
               onClose={handleCloseTerminal}
-              onNew={(shellId) => addTerminal(activeWorktreePath, shellId)}
-              onNewAi={() => addAiTerminal(activeWorktreePath)}
+              onNew={handleNewTerminal}
+              onNewAi={handleNewAiTerminal}
               shellProfiles={shellProfiles}
               terminalStatuses={terminalStatuses}
               terminalSessionActive={terminalSessionActive}
@@ -357,19 +405,22 @@ export default function App() {
 
           <div className="flex-1 relative overflow-hidden">
             {terminals.map((t) => (
-              <Terminal
-                key={t.id}
-                termId={t.id}
-                worktreePath={t.worktreePath}
-                shellId={t.shellId}
-                active={t.id === activeTerminalId}
-                fontFamily={settings.console.fontFamily}
-                fontSize={settings.console.fontSize}
-                lineHeight={settings.console.lineHeight}
-                type={t.type}
-                aiCommand={aiCommand}
-                sessionId={t.sessionId}
-              />
+              mountedTerminalIds.has(t.id) && (
+                <Terminal
+                  key={t.id}
+                  termId={t.id}
+                  worktreePath={t.worktreePath}
+                  shellId={t.shellId}
+                  active={t.id === activeTerminalId}
+                  fontFamily={settings.console.fontFamily}
+                  fontSize={settings.console.fontSize}
+                  lineHeight={settings.console.lineHeight}
+                  gpuOnly={settings.console.gpuOnly}
+                  type={t.type}
+                  aiCommand={aiCommand}
+                  sessionId={t.sessionId}
+                />
+              )
             ))}
             {!activeTerminalId && (
               <div className="absolute inset-0 flex flex-col items-center justify-center text-[#333] select-none">

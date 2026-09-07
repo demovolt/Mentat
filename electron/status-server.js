@@ -84,7 +84,6 @@ function startStatusServer(getWindow, onPort) {
           if (sessionId) {
             terminalSessionIds.set(termId, sessionId);
             log('INFO', 'Session id assigned:', termId, sessionId);
-            if (win && !win.isDestroyed()) win.webContents.send('session:id-updated', { termId, sessionId });
           }
         } else if (status === 'session_stop') {
           terminalSessionActive.set(termId, false);
@@ -100,8 +99,9 @@ function startStatusServer(getWindow, onPort) {
         }
         const sessionActive = terminalSessionActive.get(termId) ?? false;
         const currentStatus = terminalStatuses.get(termId) ?? null;
+        const resolvedSessionId = terminalSessionIds.get(termId) ?? null;
         if (win && !win.isDestroyed()) {
-          win.webContents.send('worktree:status-changed', { termId, status: currentStatus, sessionActive });
+          win.webContents.send('worktree:status-changed', { termId, status: currentStatus, sessionActive, sessionId: resolvedSessionId });
           log('INFO', 'IPC sent worktree:status-changed', termId, currentStatus, 'sessionActive:', sessionActive);
         } else {
           log('WARN', 'IPC skip — no window for', termId);

@@ -58,17 +58,14 @@ describe('App', () => {
       render(<App />);
       await waitFor(() => {
         expect(window.api.onWorktreeStatus).toHaveBeenCalled();
-        expect(window.api.onSessionIdUpdated).toHaveBeenCalled();
         expect(window.api.onTerminalExited).toHaveBeenCalled();
       });
     });
 
     it('unsubscribes from IPC events on unmount', async () => {
       const unsubStatus = vi.fn();
-      const unsubSession = vi.fn();
       const unsubExited = vi.fn();
       window.api.onWorktreeStatus.mockReturnValue(unsubStatus);
-      window.api.onSessionIdUpdated.mockReturnValue(unsubSession);
       window.api.onTerminalExited.mockReturnValue(unsubExited);
 
       const { unmount } = render(<App />);
@@ -255,18 +252,18 @@ describe('App', () => {
       // Internal state updated - no crash
     });
 
-    it('onSessionIdUpdated updates terminal sessionId', async () => {
-      let sessionCallback;
-      window.api.onSessionIdUpdated.mockImplementation((cb) => {
-        sessionCallback = cb;
+    it('onWorktreeStatus with sessionId updates terminal sessionId', async () => {
+      let statusCallback;
+      window.api.onWorktreeStatus.mockImplementation((cb) => {
+        statusCallback = cb;
         return vi.fn();
       });
 
       render(<App />);
-      await waitFor(() => expect(window.api.onSessionIdUpdated).toHaveBeenCalled());
+      await waitFor(() => expect(window.api.onWorktreeStatus).toHaveBeenCalled());
 
       act(() => {
-        sessionCallback({ termId: 'term-1', sessionId: 'new-session-id' });
+        statusCallback({ termId: 'term-1', status: 'working', sessionActive: true, sessionId: 'new-session-id' });
       });
       // No crash
     });

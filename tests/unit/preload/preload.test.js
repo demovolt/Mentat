@@ -175,12 +175,6 @@ describe('preload contextBridge API', () => {
     expect(mockIpcRenderer.on).toHaveBeenCalledWith('pty:exited', expect.any(Function));
   });
 
-  it('onSessionIdUpdated registers listener on session:id-updated', () => {
-    mockIpcRenderer.on.mockClear();
-    exposedApi.onSessionIdUpdated(vi.fn());
-    expect(mockIpcRenderer.on).toHaveBeenCalledWith('session:id-updated', expect.any(Function));
-  });
-
   it('clipboardRead calls clipboard.readText', () => {
     const result = exposedApi.clipboardRead();
     expect(mockClipboard.readText).toHaveBeenCalled();

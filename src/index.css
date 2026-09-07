@@ -24,8 +24,8 @@ body {
 ::-webkit-scrollbar-thumb { background: #2a2a2a; border-radius: 3px; }
 ::-webkit-scrollbar-thumb:hover { background: #3a3a3a; }
 
-/* xterm fills its container */
-.xterm,
-.xterm-viewport,
-.xterm-screen { height: 100% !important; }
-.xterm-viewport { overflow-y: auto !important; }
+/* xterm fills its container; viewport hidden-overflow removes the scrollbar
+   that would otherwise take ~5px on the right and corrupt FitAddon sizing.
+   Mouse-wheel scrolling still works — xterm handles it on the canvas. */
+.xterm { height: 100% !important; }
+.xterm-viewport { overflow-y: hidden !important; }

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, memo } from 'react';
 import { createPortal } from 'react-dom';
 
 const STATUS_DOT = {
@@ -7,7 +7,7 @@ const STATUS_DOT = {
   waiting:  'bg-yellow-400',
 };
 
-export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew, onNewAi, shellProfiles = [], terminalStatuses = {}, terminalSessionActive = {} }) {
+function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew, onNewAi, shellProfiles = [], terminalStatuses = {}, terminalSessionActive = {} }) {
   const atLimit = tabs.length >= 3;
   const [menuPos, setMenuPos] = useState(null);
   const chevronRef = useRef(null);
@@ -142,3 +142,5 @@ export default function TerminalTabs({ tabs, activeId, onSelect, onClose, onNew,
     </div>
   );
 }
+
+export default memo(TerminalTabs);

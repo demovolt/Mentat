@@ -43,7 +43,7 @@ describe('Status server - /status endpoint', () => {
     const res = await makeRequest('POST', '/status', { termId: 'term-a1', status: 'working' });
     expect(res.writeHead).toHaveBeenCalledWith(200);
     expect(mocks.mockWin.webContents.send).toHaveBeenCalledWith('worktree:status-changed', {
-      termId: 'term-a1', status: 'working', sessionActive: true,
+      termId: 'term-a1', status: 'working', sessionActive: true, sessionId: null,
     });
   });
 
@@ -71,13 +71,13 @@ describe('Status server - /status endpoint', () => {
     expect(call[1].status).toBeNull();
   });
 
-  it('session_start with sessionId sends session:id-updated IPC event', async () => {
+  it('session_start with sessionId includes sessionId in worktree:status-changed', async () => {
     const termId = `term-sid-${Date.now()}`;
     const res = await makeRequest('POST', '/status', { termId, status: 'session_start', sessionId: 'sess-abc-123' });
     expect(res.writeHead).toHaveBeenCalledWith(200);
-    const call = mocks.mockWin.webContents.send.mock.calls.find(c => c[0] === 'session:id-updated');
+    const call = mocks.mockWin.webContents.send.mock.calls.find(c => c[0] === 'worktree:status-changed' && c[1]?.termId === termId);
     expect(call).toBeDefined();
-    expect(call[1]).toEqual({ termId, sessionId: 'sess-abc-123' });
+    expect(call[1].sessionId).toBe('sess-abc-123');
   });
 
   it('session_stop sets sessionActive false and clears status', async () => {

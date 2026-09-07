@@ -54,6 +54,17 @@ export default function ConsoleTab({ settings, set }) {
           className="w-20 bg-[#0f0f0f] border border-[#2a2a2a] rounded-lg px-3 py-1.5 text-[13px] text-[#ccc] focus:outline-none focus:border-[#7c3aed] transition-colors"
         />
       </Section>
+
+      <Section label="GPU Only">
+        <button
+          onClick={() => set('console.gpuOnly', !c.gpuOnly)}
+          className={`relative w-10 h-5 rounded-full transition-colors ${c.gpuOnly ? 'bg-[#7c3aed]' : 'bg-[#2a2a2a]'}`}
+        >
+          <span
+            className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white transition-transform ${c.gpuOnly ? 'translate-x-5' : 'translate-x-0'}`}
+          />
+        </button>
+      </Section>
     </div>
   );
 }

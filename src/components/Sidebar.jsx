@@ -1,7 +1,7 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo, memo } from 'react';
 import RepoSection from './sidebar/RepoSection.jsx';
 
-export default function Sidebar({
+function Sidebar({
   workspace = [],
   worktreesMap = {},
   activePath,
@@ -21,9 +21,21 @@ export default function Sidebar({
 }) {
   const [collapsed, setCollapsed] = useState({});
 
-  const toggleCollapsed = (repoPath) => {
+  const toggleCollapsed = useCallback((repoPath) => {
     setCollapsed(prev => ({ ...prev, [repoPath]: !prev[repoPath] }));
-  };
+  }, []);
+
+  // Pre-compute per-repo callbacks so they're stable between status updates
+  const repoItems = useMemo(() =>
+    workspace.map(repo => ({
+      repo,
+      worktrees: worktreesMap[repo.path] || [],
+      onToggle: () => toggleCollapsed(repo.path),
+      onRemoveRepo: () => onRemoveRepo(repo.path),
+      onNewWorktree: () => onNewWorktree(repo.path),
+    })),
+    [workspace, worktreesMap, toggleCollapsed, onRemoveRepo, onNewWorktree]
+  );
 
   return (
     <div className="w-56 shrink-0 flex flex-col bg-[#111] border-r border-[#1c1c1c]">
@@ -33,21 +45,21 @@ export default function Sidebar({
             Add a repository<br />to get started
           </p>
         ) : (
-          workspace.map(repo => (
+          repoItems.map(({ repo, worktrees, onToggle, onRemoveRepo: handleRemoveRepo, onNewWorktree: handleNewWorktree }) => (
             <RepoSection
               key={repo.path}
               repo={repo}
-              worktrees={worktreesMap[repo.path] || []}
+              worktrees={worktrees}
               activePath={activePath}
               collapsed={!!collapsed[repo.path]}
-              onToggle={() => toggleCollapsed(repo.path)}
-              onRemoveRepo={() => onRemoveRepo(repo.path)}
+              onToggle={onToggle}
+              onRemoveRepo={handleRemoveRepo}
               onSelectWorktree={onSelectWorktree}
-              onRemoveWorktree={(wtp) => onRemoveWorktree(wtp, repo.path)}
-              onDeleteBranch={(wtp) => onDeleteBranch(wtp, repo.path)}
-              onRemoveBoth={(wtp) => onRemoveBoth(wtp, repo.path)}
+              onRemoveWorktree={onRemoveWorktree}
+              onDeleteBranch={onDeleteBranch}
+              onRemoveBoth={onRemoveBoth}
               onRenameWorktree={onRenameWorktree}
-              onNewWorktree={() => onNewWorktree(repo.path)}
+              onNewWorktree={handleNewWorktree}
               terminals={terminals}
               terminalStatuses={terminalStatuses}
               terminalSessionActive={terminalSessionActive}
@@ -60,3 +72,5 @@ export default function Sidebar({
     </div>
   );
 }
+
+export default memo(Sidebar);

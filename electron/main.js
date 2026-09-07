@@ -100,17 +100,17 @@ app.whenReady().then(() => {
   log('INFO', 'App ready');
   createWindow();
   statusServer = startStatusServer(getWindow, (port) => { statusPort = port; });
-  ensureFirewallRule();
+  setImmediate(ensureFirewallRule);
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow();
   });
 });
 
 app.on('before-quit', () => {
-  for (const [termId, proc] of ptyProcesses) {
+  for (const proc of ptyProcesses.values()) {
     try { proc.kill(); } catch {}
-    ptyProcesses.delete(termId);
   }
+  ptyProcesses.clear();
   if (statusServer) {
     try { statusServer.closeAllConnections?.(); } catch {}
     statusServer.close();

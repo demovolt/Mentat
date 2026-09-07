@@ -1,14 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, memo } from 'react';
 import { ChevronIcon, PlusIcon } from './SidebarIcons.jsx';
 import WorktreeItem from './WorktreeItem.jsx';
 
-export default function RepoSection({
+function RepoSection({
   repo, worktrees, activePath, collapsed, onToggle, onRemoveRepo,
   onSelectWorktree, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRenameWorktree, onNewWorktree,
   terminals, terminalStatuses, terminalSessionActive, terminalAgents, worktreeNames,
 }) {
   const [hovered, setHovered] = useState(false);
   const repoName = repo.path.replace(/\\/g, '/').split('/').filter(Boolean).pop();
+
   const terminalsByWorktree = useMemo(() => {
     const map = new Map();
     for (const t of terminals) {
@@ -17,6 +18,20 @@ export default function RepoSection({
     }
     return map;
   }, [terminals]);
+
+  // Pre-compute per-worktree callbacks so they're stable between status updates
+  const worktreeItems = useMemo(() =>
+    worktrees.map(wt => ({
+      wt,
+      wtTerminals: terminalsByWorktree.get(wt.path) || [],
+      onClick: () => onSelectWorktree(wt),
+      onRemoveWorktree: () => onRemoveWorktree(wt.path, repo.path),
+      onDeleteBranch: () => onDeleteBranch(wt.path, repo.path),
+      onRemoveBoth: () => onRemoveBoth(wt.path, repo.path),
+      onRename: (name) => onRenameWorktree(wt.path, name),
+    })),
+    [worktrees, terminalsByWorktree, repo.path, onSelectWorktree, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRenameWorktree]
+  );
 
   return (
     <div className="mb-1">
@@ -55,21 +70,21 @@ export default function RepoSection({
 
       {!collapsed && (
         <div className="pl-3 pr-2 space-y-1.5 mt-1.5">
-          {worktrees.map(wt => (
+          {worktreeItems.map(({ wt, wtTerminals, onClick, onRemoveWorktree: handleRemove, onDeleteBranch: handleDelete, onRemoveBoth: handleRemoveBoth, onRename }) => (
             <WorktreeItem
               key={wt.path}
               wt={wt}
               active={wt.path === activePath}
               customName={worktreeNames[wt.path] || null}
-              wtTerminals={terminalsByWorktree.get(wt.path) || []}
+              wtTerminals={wtTerminals}
               terminalStatuses={terminalStatuses}
               terminalSessionActive={terminalSessionActive}
               terminalAgents={terminalAgents}
-              onClick={() => onSelectWorktree(wt)}
-              onRemoveWorktree={() => onRemoveWorktree(wt.path)}
-              onDeleteBranch={() => onDeleteBranch(wt.path)}
-              onRemoveBoth={() => onRemoveBoth(wt.path)}
-              onRename={(name) => onRenameWorktree(wt.path, name)}
+              onClick={onClick}
+              onRemoveWorktree={handleRemove}
+              onDeleteBranch={handleDelete}
+              onRemoveBoth={handleRemoveBoth}
+              onRename={onRename}
             />
           ))}
         </div>
@@ -77,3 +92,5 @@ export default function RepoSection({
     </div>
   );
 }
+
+export default memo(RepoSection);

@@ -129,9 +129,14 @@ function register(ipcMain, { pty, ptyProcesses, getWindow, getShellProfiles, get
 
     ptyProcesses.set(termId, proc);
 
+    const PTY_BUFFER_CAP = 65536; // 64 KB — flush immediately if exceeded
     proc.onData(data => {
       ptyBuffer += data;
-      if (!ptyFlushTimer) {
+      if (ptyBuffer.length >= PTY_BUFFER_CAP) {
+        clearTimeout(ptyFlushTimer);
+        ptyFlushTimer = null;
+        flushPtyBuffer();
+      } else if (!ptyFlushTimer) {
         ptyFlushTimer = setTimeout(flushPtyBuffer, 16);
       }
     });
