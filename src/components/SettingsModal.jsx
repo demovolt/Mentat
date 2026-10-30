@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import GeneralTab from './settings/GeneralTab.jsx';
 import ConsoleTab from './settings/ConsoleTab.jsx';
 import ConnectionTab from './settings/ConnectionTab.jsx';
+import AboutTab from './settings/AboutTab.jsx';
 
 const NAV = [
   { id: 'general',    label: 'General' },
   { id: 'git',        label: 'Git' },
   { id: 'console',    label: 'Console' },
   { id: 'connection', label: 'Connection' },
+  { id: 'about',      label: 'About' },
 ];
 
 export default function SettingsModal({ settings, onSettingsChange, shellProfiles = [], onClose }) {
@@ -72,6 +74,7 @@ export default function SettingsModal({ settings, onSettingsChange, shellProfile
             {active === 'git'        && <p className="text-[14px] text-[#444]">Git settings will appear here.</p>}
             {active === 'console'    && <ConsoleTab settings={settings} set={set} />}
             {active === 'connection' && <ConnectionTab />}
+            {active === 'about'      && <AboutTab />}
           </div>
         </div>
       </div>

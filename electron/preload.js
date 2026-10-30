@@ -56,6 +56,9 @@ contextBridge.exposeInMainWorld('api', {
   getLogPath: () => ipcRenderer.invoke('logging:get-path'),
   logError: (msg) => ipcRenderer.send('log:renderer-error', msg),
 
+  // App
+  getVersion: () => ipcRenderer.invoke('app:version'),
+
   // Connection
   checkConnection: () => ipcRenderer.invoke('connection:check'),
   sendTestStatus: (status) => ipcRenderer.invoke('connection:send-test-status', status),

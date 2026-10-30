@@ -12,7 +12,7 @@ let logStream = null;
 function getLogPath() {
   return isDev
     ? path.join(app.getAppPath(), 'mentat.log')
-    : path.join(path.dirname(process.execPath), 'mentat.log');
+    : path.join(app.getPath('userData'), 'mentat.log');
 }
 
 function log(level, ...args) {
