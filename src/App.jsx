@@ -48,6 +48,7 @@ export default function App() {
   const aiCommandRef = useRef('claude');
   const shellProfilesRef = useRef([]);
   const settingsRef = useRef(DEFAULT_SETTINGS);
+  const lastActiveTerminalRef = useRef({});  // { [worktreePath]: termId }
   const [terminalStatuses, setTerminalStatuses] = useState({});
   const [terminalSessionActive, setTerminalSessionActive] = useState({});
   const [terminalAgents, setTerminalAgents] = useState({});
@@ -210,10 +211,9 @@ export default function App() {
         setActiveTerminalId(id);
         return [...prev, { id, worktreePath: wt.path, shellId: null, label: `${deriveAiLabel(aiCommandRef.current)} 1`, type: 'ai' }];
       }
-      setActiveTerminalId((cur) => {
-        const stillThere = existing.find((t) => t.id === cur);
-        return stillThere ? cur : existing[existing.length - 1].id;
-      });
+      const lastId = lastActiveTerminalRef.current[wt.path];
+    const lastTerm = lastId && existing.find(t => t.id === lastId);
+    setActiveTerminalId(lastTerm ? lastId : existing[existing.length - 1].id);
       return prev;
     });
   }, []);
@@ -226,6 +226,12 @@ export default function App() {
       });
     }
   }, [activeTerminalId]);
+
+  useEffect(() => {
+    if (activeTerminalId && activeWorktreePath) {
+      lastActiveTerminalRef.current[activeWorktreePath] = activeTerminalId;
+    }
+  }, [activeTerminalId, activeWorktreePath]);
 
   const handleCloseTerminal = useCallback((termId) => {
     setMountedTerminalIds(prev => {
