@@ -1,6 +1,6 @@
 'use strict';
 
-const { contextBridge, ipcRenderer, clipboard } = require('electron');
+const { contextBridge, ipcRenderer } = require('electron');
 
 const on = (channel) => (cb) => {
   const handler = (_e, payload) => cb(payload);
@@ -43,9 +43,9 @@ contextBridge.exposeInMainWorld('api', {
   onWorktreeProcess:  on('worktree:process-changed'),
   onTerminalExited:   on('pty:exited'),
 
-  // Clipboard (synchronous Electron API — navigator.clipboard is unreliable in renderer)
-  clipboardRead: () => clipboard.readText(),
-  clipboardWrite: (text) => clipboard.writeText(text),
+  // Clipboard via main process — works on all platforms
+  clipboardRead: () => ipcRenderer.invoke('clipboard:read'),
+  clipboardWrite: (text) => ipcRenderer.send('clipboard:write', text),
 
   // Window
   minimize: () => ipcRenderer.send('window:minimize'),

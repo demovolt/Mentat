@@ -139,6 +139,14 @@ ipcMain.on('window:close', () => mainWindow?.close());
 ipcMain.handle('logging:set-enabled', (_e, enabled) => setLoggingEnabled(enabled));
 ipcMain.handle('logging:get-path', () => getLogPath());
 ipcMain.handle('app:version', () => app.getVersion());
+ipcMain.handle('clipboard:read', () => {
+  const { clipboard } = require('electron');
+  return clipboard.readText();
+});
+ipcMain.on('clipboard:write', (_e, text) => {
+  const { clipboard } = require('electron');
+  clipboard.writeText(String(text || ''));
+});
 ipcMain.on('log:renderer-error', (_e, msg) => log('ERROR', '[renderer]', msg));
 
 // ── IPC: Config & state ───────────────────────────────────────────────────────

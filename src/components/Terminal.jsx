@@ -67,6 +67,15 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
     xterm.onData((data) => window.api.writeTerminal(termId, data));
     xterm.onResize(({ cols, rows }) => window.api.resizeTerminal(termId, cols, rows));
 
+    const cbWrite = (text) => {
+      console.log('[clipboard] write:', JSON.stringify(text.slice(0, 40)));
+      window.api.clipboardWrite(text);
+    };
+    const cbPaste = () => window.api.clipboardRead().then(text => {
+      console.log('[clipboard] paste:', JSON.stringify((text || '').slice(0, 40)));
+      if (text) xterm.paste(text);
+    });
+
     // Copy / paste keyboard shortcuts
     xterm.attachCustomKeyEventHandler((event) => {
       if (event.type !== 'keydown') return true;
@@ -74,42 +83,42 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
       // Ctrl+C: copy if text is selected, otherwise pass through (→ sends interrupt)
       if (event.ctrlKey && !event.shiftKey && event.code === 'KeyC') {
         const sel = xterm.getSelection();
-        if (sel) {
-          window.api.clipboardWrite(sel);
-          xterm.clearSelection();
-          return false;
-        }
+        if (sel) { cbWrite(sel); xterm.clearSelection(); return false; }
         return true;
       }
 
       // Ctrl+Shift+C: always copy selection (Linux terminal convention)
       if (event.ctrlKey && event.shiftKey && event.code === 'KeyC') {
         const sel = xterm.getSelection();
-        if (sel) window.api.clipboardWrite(sel);
+        if (sel) cbWrite(sel);
         return false;
       }
 
-      // Ctrl+V / Ctrl+Shift+V: paste from clipboard
-      if (event.ctrlKey && event.code === 'KeyV') {
-        const text = window.api.clipboardRead();
-        if (text) xterm.paste(text);
-        return false;
-      }
+      // Ctrl+V / Ctrl+Shift+V: block ^V from going to PTY; paste event fires separately
+      if (event.ctrlKey && event.code === 'KeyV') return false;
 
       return true;
+    });
+
+    // Intercept paste event before xterm — stopPropagation prevents xterm's own paste handler
+    el.addEventListener('paste', (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      cbPaste();
+    }, { capture: true });
+
+    // Auto-copy on selection change (xterm-native event, fires reliably)
+    xterm.onSelectionChange(() => {
+      const sel = xterm.getSelection();
+      if (sel) cbWrite(sel);
     });
 
     // Right-click: copy if text selected, paste otherwise (Windows Terminal behaviour)
     el.addEventListener('contextmenu', (e) => {
       e.preventDefault();
       const sel = xterm.getSelection();
-      if (sel) {
-        window.api.clipboardWrite(sel);
-        xterm.clearSelection();
-      } else {
-        const text = window.api.clipboardRead();
-        if (text) xterm.paste(text);
-      }
+      if (sel) { cbWrite(sel); xterm.clearSelection(); }
+      else cbPaste();
     });
 
     window.api.createTerminal(termId, worktreePath, shellId, type, aiCommand, sessionId);
@@ -154,11 +163,15 @@ export default function Terminal({ termId, worktreePath, shellId, active, fontFa
 
   // Receive PTY data
   useEffect(() => {
+    // Strip mouse-tracking enable sequences so text selection always works in AI terminals.
+    // Claude Code sends these to capture mouse clicks for its own UI, but we prioritize selection.
+    const MOUSE_ON_RE = /\x1b\[\?(1000|1002|1003|1006|1015)h/g;
     return window.api.onTerminalData(({ termId: id, data }) => {
       if (id !== termId) return;
-      xtermRef.current?.write(data);
+      const out = type === 'ai' ? data.replace(MOUSE_ON_RE, '') : data;
+      xtermRef.current?.write(out);
     });
-  }, [termId]);
+  }, [termId, type]);
 
   // Focus + fit when this terminal becomes visible
   useEffect(() => {
