@@ -52,6 +52,7 @@ export default function App() {
   const [terminalStatuses, setTerminalStatuses] = useState({});
   const [terminalSessionActive, setTerminalSessionActive] = useState({});
   const [terminalAgents, setTerminalAgents] = useState({});
+  const [terminalProcesses, setTerminalProcesses] = useState({});
   const [worktreeNames, setWorktreeNames] = useState({});  // { [path]: customName }
   const [showSettings, setShowSettings] = useState(false);
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -169,6 +170,12 @@ export default function App() {
   useEffect(() => {
     return window.api.onWorktreeAgent(({ termId, agents }) => {
       setTerminalAgents(prev => ({ ...prev, [termId]: agents }));
+    });
+  }, []);
+
+  useEffect(() => {
+    return window.api.onWorktreeProcess(({ termId, processes }) => {
+      setTerminalProcesses(prev => ({ ...prev, [termId]: processes }));
     });
   }, []);
 
@@ -392,6 +399,7 @@ export default function App() {
           terminalStatuses={terminalStatuses}
           terminalSessionActive={terminalSessionActive}
           terminalAgents={terminalAgents}
+          terminalProcesses={terminalProcesses}
         />
 
         <div className="flex-1 flex flex-col overflow-hidden">

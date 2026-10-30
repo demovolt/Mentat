@@ -40,6 +40,7 @@ contextBridge.exposeInMainWorld('api', {
   onTerminalData:     on('pty:data'),
   onWorktreeStatus:   on('worktree:status-changed'),
   onWorktreeAgent:    on('worktree:agent-changed'),
+  onWorktreeProcess:  on('worktree:process-changed'),
   onTerminalExited:   on('pty:exited'),
 
   // Clipboard (synchronous Electron API — navigator.clipboard is unreliable in renderer)
@@ -60,6 +61,7 @@ contextBridge.exposeInMainWorld('api', {
   getVersion: () => ipcRenderer.invoke('app:version'),
 
   // Connection
+  installHooks: () => ipcRenderer.invoke('hooks:install'),
   checkConnection: () => ipcRenderer.invoke('connection:check'),
   sendTestStatus: (status) => ipcRenderer.invoke('connection:send-test-status', status),
 });

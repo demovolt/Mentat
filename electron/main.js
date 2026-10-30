@@ -8,11 +8,12 @@ const http = require('http');
 
 const { getLogPath, log, setLoggingEnabled, closeLogStream } = require('./logger');
 const { loadConfig, saveConfig, loadState, saveState } = require('./config');
-const { startStatusServer } = require('./status-server');
+const { startStatusServer, clearAllPidMonitors } = require('./status-server');
 const { ensureFirewallRule } = require('./helpers');
 const { getShellProfiles } = require('./shell-profiles');
 const gitIpc = require('./ipc/git');
 const ptyIpc = require('./ipc/pty');
+const { installHooks } = require('./hooks-installer');
 
 const isDev = process.env.ELECTRON_IS_DEV === '1';
 
@@ -107,6 +108,7 @@ app.whenReady().then(() => {
 });
 
 app.on('before-quit', () => {
+  clearAllPidMonitors();
   for (const proc of ptyProcesses.values()) {
     try { proc.kill(); } catch {}
   }
@@ -169,6 +171,17 @@ ipcMain.handle('dialog:open-folder', async () => {
 });
 
 // ── IPC: Connection check ─────────────────────────────────────────────────────
+
+ipcMain.handle('hooks:install', async () => {
+  try {
+    const results = await installHooks();
+    log('INFO', 'Hooks install:', JSON.stringify(results));
+    return { ok: true, results };
+  } catch (e) {
+    log('ERROR', 'Hooks install failed:', e.message);
+    return { ok: false, error: e.message, results: [] };
+  }
+});
 
 ipcMain.handle('connection:check', async () => {
   const isWin = process.platform === 'win32';

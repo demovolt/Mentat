@@ -62,6 +62,18 @@ export function AgentTreeItem({ agent }) {
   );
 }
 
+export function ProcessTreeItem({ process }) {
+  return (
+    <div className="flex flex-col">
+      <div className="w-px h-2 bg-[#2a2a2a] ml-[2.5px]" />
+      <div className="flex items-center gap-1 min-w-0">
+        <span className="w-1.5 h-1.5 rounded-full bg-orange-500 shrink-0" />
+        <span className="text-[11px] leading-none text-[#555]">Proc</span>
+      </div>
+    </div>
+  );
+}
+
 export function StatusDot({ status }) {
   const styles = {
     working:  { dot: 'bg-green-500',  text: 'text-green-500',  label: 'Work' },

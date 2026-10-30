@@ -5,7 +5,7 @@ import WorktreeItem from './WorktreeItem.jsx';
 function RepoSection({
   repo, worktrees, activePath, collapsed, onToggle, onRemoveRepo,
   onSelectWorktree, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRenameWorktree, onNewWorktree,
-  terminals, terminalStatuses, terminalSessionActive, terminalAgents, worktreeNames,
+  terminals, terminalStatuses, terminalSessionActive, terminalAgents, terminalProcesses, worktreeNames,
 }) {
   const [hovered, setHovered] = useState(false);
   const repoName = repo.path.replace(/\\/g, '/').split('/').filter(Boolean).pop();
@@ -80,6 +80,7 @@ function RepoSection({
               terminalStatuses={terminalStatuses}
               terminalSessionActive={terminalSessionActive}
               terminalAgents={terminalAgents}
+              terminalProcesses={terminalProcesses}
               onClick={onClick}
               onRemoveWorktree={handleRemove}
               onDeleteBranch={handleDelete}

@@ -11,6 +11,8 @@ export default function ConnectionTab() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [testResults, setTestResults] = useState({});
+  const [installing, setInstalling] = useState(false);
+  const [installResults, setInstallResults] = useState(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -26,6 +28,15 @@ export default function ConnectionTab() {
     const result = await window.api.sendTestStatus(status);
     setTestResults(prev => ({ ...prev, [status]: result.ok ? 'ok' : 'fail' }));
     setTimeout(() => setTestResults(prev => { const n = { ...prev }; delete n[status]; return n; }), 2000);
+  };
+
+  const installHooks = async () => {
+    setInstalling(true);
+    setInstallResults(null);
+    const result = await window.api.installHooks();
+    setInstallResults(result);
+    setInstalling(false);
+    if (result.ok) refresh();
   };
 
   const groups = data ? [...new Set(data.scripts.map(s => s.group))] : [];
@@ -82,6 +93,40 @@ export default function ConnectionTab() {
           ))}
         </div>
       )}
+
+      <div className="flex flex-col gap-2">
+        <span className="text-[11px] text-[#555] uppercase tracking-wider">Hooks</span>
+        <button
+          onClick={installHooks}
+          disabled={installing}
+          className="flex items-center justify-center gap-2 px-4 py-2 bg-[#7c3aed] hover:bg-[#6d28d9] disabled:opacity-50 disabled:cursor-not-allowed text-white text-[13px] rounded-lg transition-colors"
+        >
+          {installing ? (
+            <>
+              <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="animate-spin">
+                <path d="M13.5 8A5.5 5.5 0 1 1 10 3" /><polyline points="10 1 10 4 13 4" />
+              </svg>
+              Installing…
+            </>
+          ) : 'Install hooks'}
+        </button>
+        {installResults && (
+          <div className="flex flex-col gap-0.5 mt-1">
+            {installResults.results.map((r, i) => (
+              <div key={i} className="flex items-center gap-2 px-3 py-1.5 bg-[#0f0f0f] border border-[#1c1c1c] rounded-md">
+                <span className={`text-[12px] font-mono shrink-0 ${r.ok ? 'text-green-500' : 'text-red-500'}`}>
+                  {r.ok ? '✓' : '✗'}
+                </span>
+                <span className="text-[12px] text-[#666] truncate flex-1">{r.label}</span>
+                {r.error && <span className="text-[11px] text-red-400 truncate max-w-[120px]" title={r.error}>{r.error}</span>}
+              </div>
+            ))}
+            {!installResults.error && installResults.results.every(r => r.ok) && (
+              <p className="text-[11px] text-green-500 mt-1 pl-0.5">All hooks installed successfully</p>
+            )}
+          </div>
+        )}
+      </div>
 
       <div className="flex flex-col gap-2">
         <span className="text-[11px] text-[#555] uppercase tracking-wider">Test Statuses</span>

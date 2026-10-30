@@ -17,6 +17,7 @@ function Sidebar({
   terminalStatuses = {},
   terminalSessionActive = {},
   terminalAgents = {},
+  terminalProcesses = {},
   worktreeNames = {},
 }) {
   const [collapsed, setCollapsed] = useState({});
@@ -64,6 +65,7 @@ function Sidebar({
               terminalStatuses={terminalStatuses}
               terminalSessionActive={terminalSessionActive}
               terminalAgents={terminalAgents}
+              terminalProcesses={terminalProcesses}
               worktreeNames={worktreeNames}
             />
           ))

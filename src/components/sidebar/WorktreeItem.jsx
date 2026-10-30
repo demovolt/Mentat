@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect, memo } from 'react';
 import { createPortal } from 'react-dom';
-import { BranchIcon, TerminalIndicator, StatusDot, AgentTreeItem } from './SidebarIcons.jsx';
+import { BranchIcon, TerminalIndicator, StatusDot, AgentTreeItem, ProcessTreeItem } from './SidebarIcons.jsx';
 import DropMenuItem from './DropMenuItem.jsx';
 
-function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, terminalSessionActive, terminalAgents, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
+function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, terminalSessionActive, terminalAgents, terminalProcesses, onClick, onRemoveWorktree, onDeleteBranch, onRemoveBoth, onRename }) {
   const [hovered, setHovered] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
@@ -98,6 +98,7 @@ function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, t
           <div className="flex items-start w-full mt-1">
             {wtTerminals.map(t => {
               const agents = terminalAgents?.[t.id] || [];
+              const processes = terminalProcesses?.[t.id] || [];
               if (!terminalSessionActive[t.id]) return <TerminalIndicator key={t.id} />;
               return (
                 <div key={t.id} className="flex-1 flex flex-col min-w-0">
@@ -106,6 +107,9 @@ function WorktreeItem({ wt, active, customName, wtTerminals, terminalStatuses, t
                   </div>
                   {agents.map((agent) => (
                     <AgentTreeItem key={agent.agentId} agent={agent} />
+                  ))}
+                  {processes.map((proc) => (
+                    <ProcessTreeItem key={proc.processId} process={proc} />
                   ))}
                 </div>
               );
@@ -164,6 +168,7 @@ function arePropsEqual(prev, next) {
     if (prev.terminalStatuses[id] !== next.terminalStatuses[id]) return false;
     if (prev.terminalSessionActive[id] !== next.terminalSessionActive[id]) return false;
     if (prev.terminalAgents[id] !== next.terminalAgents[id]) return false;
+    if (prev.terminalProcesses?.[id] !== next.terminalProcesses?.[id]) return false;
   }
   return true;
 }

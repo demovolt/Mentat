@@ -31,12 +31,14 @@
     "files": [
       "dist/**/*",
       "electron/**/*",
+      "script/**/*",
       "node_modules/**/*",
       "package.json"
     ],
     "asar": true,
     "asarUnpack": [
-      "**/node_modules/node-pty/**"
+      "**/node_modules/node-pty/**",
+      "script/**/*"
     ],
     "win": {
       "target": [
