@@ -175,15 +175,16 @@ describe('preload contextBridge API', () => {
     expect(mockIpcRenderer.on).toHaveBeenCalledWith('pty:exited', expect.any(Function));
   });
 
-  it('clipboardRead calls clipboard.readText', () => {
-    const result = exposedApi.clipboardRead();
-    expect(mockClipboard.readText).toHaveBeenCalled();
-    expect(result).toBe('clipboard-content');
+  it('clipboardRead calls ipcRenderer.invoke with clipboard:read', () => {
+    mockIpcRenderer.invoke.mockClear();
+    exposedApi.clipboardRead();
+    expect(mockIpcRenderer.invoke).toHaveBeenCalledWith('clipboard:read');
   });
 
-  it('clipboardWrite calls clipboard.writeText', () => {
+  it('clipboardWrite calls ipcRenderer.send with clipboard:write', () => {
+    mockIpcRenderer.send.mockClear();
     exposedApi.clipboardWrite('hello');
-    expect(mockClipboard.writeText).toHaveBeenCalledWith('hello');
+    expect(mockIpcRenderer.send).toHaveBeenCalledWith('clipboard:write', 'hello');
   });
 
   it('minimize calls ipcRenderer.send with window:minimize', () => {

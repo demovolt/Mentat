@@ -30,6 +30,11 @@ export class Terminal {
     return { dispose: vi.fn() };
   }
 
+  onSelectionChange(cb) {
+    this._onSelectionChangeCb = cb;
+    return { dispose: vi.fn() };
+  }
+
   attachCustomKeyEventHandler(handler) {
     this._customKeyHandlers.push(handler);
   }

@@ -29,11 +29,12 @@ export function makeApiMock() {
     onTerminalData: vi.fn(() => vi.fn()),
     onWorktreeStatus: vi.fn(() => vi.fn()),
     onWorktreeAgent: vi.fn(() => vi.fn()),
+    onWorktreeProcess: vi.fn(() => vi.fn()),
     onTerminalExited: vi.fn(() => vi.fn()),
     onSessionIdUpdated: vi.fn(() => vi.fn()),
 
     // Clipboard
-    clipboardRead: vi.fn(() => ''),
+    clipboardRead: vi.fn(() => Promise.resolve('')),
     clipboardWrite: vi.fn(),
 
     // Window
@@ -46,8 +47,12 @@ export function makeApiMock() {
     getLogPath: vi.fn().mockResolvedValue('/tmp/mentat.log'),
     logError: vi.fn(),
 
+    // App
+    getVersion: vi.fn().mockResolvedValue('0.1.1'),
+
     // Connection
     checkConnection: vi.fn().mockResolvedValue({ scripts: [], serverRunning: false }),
     sendTestStatus: vi.fn().mockResolvedValue({ ok: true }),
+    installHooks: vi.fn().mockResolvedValue({ ok: true, results: [] }),
   };
 }
