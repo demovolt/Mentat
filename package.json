@@ -62,8 +62,7 @@
     "linux": {
       "target": [
         "AppImage",
-        "deb",
-        "rpm"
+        "deb"
       ]
     },
     "publish": {
